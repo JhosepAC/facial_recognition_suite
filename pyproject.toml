@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "biovision-suite"
+description = "BioVision Suite — Plataforma de análisis biométrico facial (local, offline)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "BioVision Suite Team" }]
+keywords = ["facial", "recognition", "biometric", "insightface", "pyside6"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Video :: Display",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# La versión se lee de app/__init__.py (fuente única), igual que en el resto del código.
+dynamic = ["version"]
+
+dependencies = [
+    # --- IA / Visión por computadora ---
+    "insightface==1.0.1",
+    "onnxruntime==1.18.1",
+    "opencv-python==4.10.0.84",
+    "mediapipe==0.10.21",
+    "numpy==1.26.4",
+    "Pillow==10.4.0",
+    # --- Indexación ANN (opcional: sin faiss hay fallback lineal) ---
+    "faiss-cpu==1.15.0",
+    # --- Interfaz gráfica ---
+    "PySide6==6.7.2",
+    # --- Base de datos ---
+    "SQLAlchemy==2.0.31",
+    # --- Utilidades ---
+    "pandas==2.2.2",
+    "matplotlib==3.9.4",
+    "PyYAML==6.0.1",
+    "loguru==0.7.2",
+    "bcrypt==4.2.0",
+    "cryptography==43.0.0",
+    # --- Exportación ---
+    "openpyxl==3.1.5",
+    "reportlab==4.2.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.2",
+    "pytest-cov==5.0.0",
+]
+
+[project.scripts]
+biovision = "app.main:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "app.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+"app" = ["strings/*.json"]
+"app.gui" = ["assets/*.ttf"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,87 @@
+# =========================================================
+# Configuración global — Facial Recognition Suite
+# =========================================================
+
+app:
+  name: "FaceScan"
+  # La versión se gestiona en app/__init__.py (__version__); el valor del YAML
+  # se ignora deliberadamente para mantener una única fuente de verdad.
+  version: "1.0.0"
+  theme: "dark"              # dark | light
+  language: "es"
+
+database:
+  path: "data/biovision.db"
+  echo_sql: false
+
+vision:
+  detector_backend: "insightface"     # insightface | mediapipe
+  detector_model: "buffalo_l"         # paquete de modelos insightface (RetinaFace/SCRFD + ArcFace)
+  det_size: [640, 640]
+  ctx_id: -1                          # -1 = CPU, 0 = primera GPU CUDA disponible
+  min_face_confidence: 0.30           # umbral de confianza del detector (menor = detecta más)
+  embedding_dim: 512
+  quality_min_score: 25.0             # calidad mínima (0-100) para aceptar un rostro (registro y match) — bajado de 45 para mejorar recall en fotos/video reales
+  retry_downscale: 0.5                # si no se detecta nada, reintentar con la imagen a esta escala
+  min_face_size: 32                   # lado mínimo (px) del bbox para considerar un rostro utilizable — permite rostros más pequeños en video
+  max_yaw_deg: 35.0                   # inclinación lateral máxima tolerada al registrar (grados) — relajado para mejorar recall
+  max_pitch_deg: 40.0                 # inclinación vertical máxima tolerada al registrar (grados) — pitch heurístico frontal ~30-38°, se sube a 40 para no rechazar fotos válidas como facescan/jhosep-*.jpeg
+  enroll_require_single_face: true    # rechazar fotos grupales al registrar (un solo rostro)
+  enable_face_attributes: true        # análisis facial extendido (gafas/mascarilla/barba/bigote/sonrisa/ojos)
+
+recognition:
+  similarity_metric: "cosine"
+  match_threshold: 0.55      # distancia coseno máxima para considerar coincidencia — subido de 0.40 (demasiado estricto, causaba falsos negativos) a 0.55, valor recomendado para buffalo_l en condiciones reales
+  top_k_results: 5
+  apply_quality_gate: false   # desactivado para mejorar recall: el gate descartaba silenciosamente rostros válidos en foto/video/webcam. Mantener true solo si calidad es crítica.
+  dedupe_threshold: 0.30     # distancia bajo la cual se considera "mismo rostro" al deduplicar
+  # --- Índice ANN (FAISS) para la búsqueda 1:N ---
+  ann_enabled: true          # activar el índice aproximado (requiere `faiss-cpu` instalado)
+  ann_min_size: 256          # galería menor a esto -> búsqueda lineal exacta
+  ann_ivf_min_size: 2000     # sobre este tamaño usa IndexIVFFlat (ANN real); bajo -> flat exacto
+  ann_nlist: 0               # nº de clusters IVF; 0 = automático (min(n//64, 1024))
+  ann_nprobe: 0              # nº de clusters explorados; 0 = automático (max(1, nlist//8))
+  ann_persist: false         # persistir el índice IVF a disco (arranque más rápido en bases grandes)
+  ann_index_dir: "data/ann_index"
+
+camera:
+  default_index: 0
+  frame_width: 960
+  frame_height: 540
+  target_fps: 30
+  recognition_interval_frames: 10   # ejecutar reconocimiento cada N frames (rendimiento) — subido de 5 a 10 para reducir carga CPU y mantener UI fluida
+  max_recognition_width: 640        # ancho máximo para inferencia en vivo (downscale antes de detectar, bbox se reescala)
+  display_max_fps: 30               # FPS máximo de renderizado en UI (throttle)
+
+video:
+  allowed_extensions: [".mp4", ".avi", ".mov", ".mkv"]
+  sample_interval_frames: 15        # procesar 1 de cada N frames (a 30fps ≈ cada 0.5s)
+  max_processing_width: 960         # redimensionar frames grandes antes de detectar (rendimiento)
+  evidence_crop_padding: 0.25       # margen proporcional alrededor del rostro al guardar evidencia
+  save_evidence_thumbnails: true
+  evidence_dir: "data/video_evidence"
+
+storage:
+  photos_dir: "data/photos"
+  thumbnails_dir: "data/thumbnails"
+  exports_dir: "exports"
+  logs_dir: "logs"
+
+security:
+  session_timeout_minutes: 30
+  max_session_minutes: 0           # 0 = sin tope de duración total de la sesión
+  remember_credentials_days: 30    # días que dura "Recordar sesión" antes de exigir login
+  min_password_length: 8
+  lockout_attempts: 5
+  lockout_minutes: 15
+  # Retraso (ms) entre intentos de login fallidos y registros de cuenta.
+  # 0 desactiva el throttle (no recomendado).
+  login_failure_delay_ms: 250
+  # Registro de nuevas cuentas desde la pantalla de inicio de sesión.
+  allow_self_registration: true
+  default_registration_role: "Operador"
+
+logging:
+  level: "INFO"
+  rotation: "10 MB"
+  retention: "30 days"

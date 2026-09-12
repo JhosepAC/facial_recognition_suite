@@ -1,0 +1,19 @@
+LICENCIA / LICENSE — FaceScan v1.0.0
+
+ES:
+FaceScan es software propietario. El presente instalador le concede una
+licencia de uso de la aplicación en un único equipo para el propósito
+descrito en el manual de usuario. Quedan prohibidos la copia, la
+redistribución, la ingeniería inversa y la venta del software sin la
+autorización expresa del titular. Los datos biométricos generados con la
+aplicación son responsabilidad de quien la opera y deben tratarse conforme
+a la legislación aplicable (por ejemplo, el RGPD y la LOPDGDD en la UE).
+
+EN:
+FaceScan is proprietary software. This installer grants you a license to
+use the application on a single computer for the purpose described in the
+user manual. Copying, redistributing, reverse-engineering and selling the
+software are prohibited without the express authorization of the owner.
+Biometric data generated with the application is the responsibility of the
+operator and must be handled in accordance with applicable law (e.g. GDPR
+in the EU).

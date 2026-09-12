@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/
+config/.secret.key
+logs/*.log
+exports/*
+!exports/.gitkeep
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+models/
+packaging/assets/
+packaging/version_info.txt
+.idea/
