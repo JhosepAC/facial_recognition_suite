@@ -1,7 +1,7 @@
-"""Regenera docs/diagramas/{arquitectura,uml_clases}.png con matplotlib.
+"""Regenera docs/es/diagramas/{arquitectura,uml_clases}.png con matplotlib.
 
 Uso:
-    .venv\\Scripts\\python.exe docs/diagramas/generar_diagramas.py
+    .venv\\Scripts\\python.exe docs/es/diagramas/generar_diagramas.py
 
 Solo requiere matplotlib (ya incluido en requirements.txt). Los diagramas se
 generan con un tema oscuro coherente con la interfaz.
