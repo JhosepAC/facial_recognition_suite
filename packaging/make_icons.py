@@ -1,10 +1,12 @@
-"""
-Genera los recursos de marca a partir del logo facescan.png (raíz del proyecto):
-  - packaging/assets/facescan.ico      (icono multi-resolución 16..256 px)
-  - packaging/assets/wizard_sidebar.bmp (imagen lateral del wizard, 164x314)
-  - packaging/assets/wizard_banner.bmp  (imagen superior del wizard, 58x58)
+"""Generate branding resources from the project logo.
 
-Uso:
+Creates the following assets from ``facescan.png`` at the repository root:
+
+- ``packaging/assets/facescan.ico``: multi-resolution icon (16..256 px)
+- ``packaging/assets/wizard_sidebar.bmp``: wizard sidebar image (164x314)
+- ``packaging/assets/wizard_banner.bmp``: wizard banner image (58x58)
+
+Usage:
     python packaging/make_icons.py
 """
 from pathlib import Path
@@ -18,7 +20,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 img = Image.open(SRC).convert("RGBA")
 
-# Recorte cuadrado centrado para no deformar el logo en los iconos.
+# Center-cropped square to avoid distorting the logo in icons.
 w, h = img.size
 side = min(w, h)
 img = img.crop(((w - side) // 2, (h - side) // 2, (w + side) // 2, (h + side) // 2))

@@ -1,9 +1,8 @@
 """
-Tests del módulo TOTP (app/core/totp.py).
+Tests for the TOTP module (app/core/totp.py).
 
-Usan el vector de prueba RFC 6238 (SHA1) para validar la derivación del
-código y verifican la tolerancia de ventana y el emparejamiento con apps
-estándar (secret base32 / URI otpauth).
+Uses the RFC 6238 (SHA1) test vector to validate code derivation and verifies
+window tolerance and pairing with standard apps (base32 secret / otpauth URI).
 """
 import time
 
@@ -21,10 +20,10 @@ def test_generate_secret_is_base32_and_unique():
 
 
 def test_rfc6238_sha1_test_vector():
-    # RFC 6238 Appendix B, SHA1: secret ASCII "12345678901234567890".
-    # El vector publicado usa 8 dígitos: para T=59 (counter=1) es "94287082".
-    # Nuestro módulo produce 6 dígitos, así que derivamos de esa referencia:
-    # con el mismo secret y counter, el HMAC es idéntico -> 6 dígitos 287082.
+    # RFC 6238 Appendix B, SHA1: ASCII secret "12345678901234567890".
+    # Published vector uses 8 digits: for T=59 (counter=1) it is "94287082".
+    # Our module produces 6 digits, so we derive from that reference:
+    # with the same secret and counter the HMAC is identical -> 6 digits 287082.
     secret = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"
     from app.core.totp import _code_at
     assert _code_at(secret, 1) == "287082"
@@ -34,7 +33,7 @@ def test_current_code_changes_over_time():
     secret = generate_secret()
     now = time.time()
     a = current_code(secret, now)
-    b = current_code(secret, now + 60)  # +2 ventanas (60 s)
+    b = current_code(secret, now + 60)  # +2 windows (60 s)
     assert a.isdigit() and len(a) == 6
     assert a != b
 
@@ -49,8 +48,8 @@ def test_verify_code_accepts_current_window():
 def test_verify_code_tolerates_adjacent_window():
     secret = generate_secret()
     now = time.time()
-    code_early = current_code(secret, now - 30)  # ventana anterior
-    code_late = current_code(secret, now + 30)   # ventana siguiente
+    code_early = current_code(secret, now - 30)  # previous window
+    code_late = current_code(secret, now + 30)   # next window
     assert verify_code(secret, code_early, now) is True
     assert verify_code(secret, code_late, now) is True
 
@@ -61,7 +60,7 @@ def test_verify_code_rejects_wrong_and_non_digits():
     assert verify_code(secret, "000000", now) is False
     assert verify_code(secret, "", now) is False
     assert verify_code(secret, "abc123", now) is False
-    assert verify_code(secret, "12345", now) is False  # longitud corta
+    assert verify_code(secret, "12345", now) is False  # short length
 
 
 def test_otpauth_uri_contains_secret_and_account():
