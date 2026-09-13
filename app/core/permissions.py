@@ -1,19 +1,18 @@
-"""
-Catálogo de permisos del sistema y roles por defecto.
+"""System permission catalog and default roles.
 
-Los permisos se guardan en Role.permisos_csv como texto separado por comas
-(ver app/database/models.py). El comodín "*" concede todos los permisos
-(usado por el rol "Administrador").
+Permissions are stored in ``Role.permisos_csv`` as comma-separated text
+(see app.database.models). The wildcard ``"*"`` grants all permissions
+(used by the "Administrador" role).
 """
 
 PERM_DASHBOARD = "dashboard.ver"
-PERM_PERSONAS = "personas.usar"          # registrar/editar personas y fotos
+PERM_PERSONAS = "personas.usar"  # Register/edit persons and photos.
 PERM_COMPARADOR = "comparador.usar"
 PERM_BUSQUEDA = "busqueda.usar"
 PERM_WEBCAM = "webcam.usar"
 PERM_VIDEO = "video.usar"
-PERM_ESTADISTICAS = "estadisticas.usar"  # incluye exportación
-PERM_ADMIN = "admin.acceso"              # usuarios, roles, respaldo, limpieza, config. segura
+PERM_ESTADISTICAS = "estadisticas.usar"  # Includes export.
+PERM_ADMIN = "admin.acceso"  # Users, roles, backup, cleanup, secure settings.
 
 ALL_PERMISSIONS = [
     PERM_DASHBOARD, PERM_PERSONAS, PERM_COMPARADOR, PERM_BUSQUEDA,
@@ -31,7 +30,7 @@ PERMISSION_LABELS = {
     PERM_ADMIN: "Administración del sistema",
 }
 
-# Roles sembrados automáticamente la primera vez que se ejecuta la aplicación.
+# Roles seeded automatically on first application launch.
 DEFAULT_ROLES: dict[str, list[str]] = {
     "Administrador": ["*"],
     "Operador": [
@@ -43,8 +42,24 @@ DEFAULT_ROLES: dict[str, list[str]] = {
 
 
 def permissions_from_csv(permisos_csv: str | None) -> set[str]:
+    """Parse a CSV permission string into a set.
+
+    Args:
+        permisos_csv: Comma-separated permission names or None.
+
+    Returns:
+        Set of permission strings.
+    """
     return {p.strip() for p in (permisos_csv or "").split(",") if p.strip()}
 
 
 def permissions_to_csv(permisos: list[str]) -> str:
+    """Serialize a permission list to CSV.
+
+    Args:
+        permisos: List of permission names.
+
+    Returns:
+        Comma-separated, sorted, deduplicated permission string.
+    """
     return ",".join(sorted(set(permisos)))

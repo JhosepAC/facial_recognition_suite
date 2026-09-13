@@ -1,17 +1,17 @@
-"""
-Modelos ORM (SQLAlchemy 2.0) de FaceScan.
+"""FaceScan ORM models (SQLAlchemy 2.0).
 
-Diseño:
-- Person: ficha biométrica de una persona registrada.
-- Photo: fotografías asociadas a una persona (una persona puede tener varias).
-- FaceEmbedding: vector biométrico (512-d) extraído de una foto concreta.
-  Se separa de Photo para poder tener múltiples embeddings por foto/modelo
-  y para poder recalcular embeddings sin perder la foto original.
-- User / Role: control de acceso a la aplicación (no confundir con Person).
-- RememberedSession: token de 'recordar sesión' (solo se persiste su hash SHA-256).
-- AuditLog: bitácora de acciones sensibles.
-- RecognitionEvent: historial de reconocimientos (imagen, video, webcam).
+Design:
+- Person: biometric record for a registered person.
+- Photo: photos linked to a person (one person may have several).
+- FaceEmbedding: biometric vector (512-d) extracted from a specific photo.
+  Kept separate from Photo to allow multiple embeddings per photo/model
+  and to allow re-computing embeddings without losing the original photo.
+- User / Role: application access control (not to be confused with Person).
+- RememberedSession: "remember me" token (only its SHA-256 hash is persisted).
+- AuditLog: log of sensitive actions.
+- RecognitionEvent: history of recognitions (image, video, webcam).
 """
+
 from __future__ import annotations
 
 import uuid
@@ -26,10 +26,17 @@ from app.database.base import Base
 
 
 def _uuid() -> str:
+    """Generate a new UUID string.
+
+    Returns:
+        UUID4 string.
+    """
     return str(uuid.uuid4())
 
 
 class Person(Base):
+    """Registered person with biometric and contact details."""
+
     __tablename__ = "persons"
 
     uuid: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
@@ -64,10 +71,13 @@ class Person(Base):
 
     @property
     def nombre_completo(self) -> str:
+        """Return the full name (given name + surname)."""
         return f"{self.nombre} {self.apellidos}".strip()
 
 
 class Photo(Base):
+    """Photo belonging to a person."""
+
     __tablename__ = "photos"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -88,11 +98,12 @@ class Photo(Base):
 
 
 class FaceEmbedding(Base):
+    """Biometric vector serialized as raw bytes (float32, 512-d by default).
+
+    Stored as raw bytes (LargeBinary) for efficiency; see
+    app.utils.vector_utils for (de)serialization to/from numpy.ndarray.
     """
-    Vector biométrico serializado (float32, 512-d por defecto — ArcFace/InsightFace).
-    Se guarda como bytes crudos (LargeBinary) para eficiencia; ver app/utils/vector_utils.py
-    para (de)serializar hacia/desde numpy.ndarray.
-    """
+
     __tablename__ = "face_embeddings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -106,8 +117,8 @@ class FaceEmbedding(Base):
     det_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     quality_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     facial_attributes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # JSON serializado de app.vision.face_attributes.FaceAttributes
-    # (gafas/mascarilla/barba/bigote/sonrisa/ojos_abiertos + confianza).
+    # Serialized JSON from app.vision.face_attributes.FaceAttributes
+    # (glasses/mask/beard/moustache/smile/eyes_open + confidence).
 
     fecha_creacion: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -116,16 +127,20 @@ class FaceEmbedding(Base):
 
 
 class Role(Base):
+    """Application role with comma-separated permission list."""
+
     __tablename__ = "roles"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nombre: Mapped[str] = mapped_column(String(60), unique=True, nullable=False)
-    permisos_csv: Mapped[str] = mapped_column(Text, default="")  # lista simple separada por comas
+    permisos_csv: Mapped[str] = mapped_column(Text, default="")  # Simple comma-separated list.
 
     users: Mapped[list["User"]] = relationship(back_populates="role")
 
 
 class User(Base):
+    """Application user account."""
+
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -141,8 +156,8 @@ class User(Base):
     intentos_fallidos: Mapped[int] = mapped_column(Integer, default=0)
     bloqueado_hasta: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
-    # Segundo factor (TOTP): secreto cifrado en reposo (app.core.security/
-    # encrypt_value) y flag de activación. None + False = 2FA deshabilitado.
+    # Second factor (TOTP): encrypted-at-rest secret (app.core.security/
+    # encrypt_value) and enabled flag. None + False means 2FA is disabled.
     totp_secret: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     totp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -151,6 +166,8 @@ class User(Base):
 
 
 class AuditLog(Base):
+    """Audit log entry for sensitive actions."""
+
     __tablename__ = "audit_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -161,7 +178,8 @@ class AuditLog(Base):
 
 
 class RecognitionEvent(Base):
-    """Historial de reconocimientos: imagen estática, video o webcam en vivo."""
+    """History entry for recognition operations (image, video, or webcam)."""
+
     __tablename__ = "recognition_events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -180,7 +198,8 @@ class RecognitionEvent(Base):
 
 
 class VideoJob(Base):
-    """Un trabajo de análisis sobre un archivo de video concreto."""
+    """Analysis job for a specific video file."""
+
     __tablename__ = "video_jobs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -207,13 +226,15 @@ class VideoJob(Base):
 
     @property
     def progreso_pct(self) -> float:
+        """Return processing progress as a percentage (0-100)."""
         if not self.total_frames:
             return 0.0
         return round(min(100.0, (self.frames_procesados / self.total_frames) * 100), 1)
 
 
 class VideoDetection(Base):
-    """Un rostro detectado (y opcionalmente reconocido) en un frame muestreado de un video."""
+    """Face detected (and optionally recognized) in a sampled video frame."""
+
     __tablename__ = "video_detections"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -241,21 +262,24 @@ class VideoDetection(Base):
 
     @property
     def bbox(self) -> tuple[float, float, float, float]:
+        """Return the bounding box as (x1, y1, x2, y2)."""
         return (self.bbox_x1, self.bbox_y1, self.bbox_x2, self.bbox_y2)
 
     @property
     def timestamp_fmt(self) -> str:
+        """Return the timestamp formatted as hh:mm:ss or mm:ss."""
         m, s = divmod(int(self.timestamp_seg), 60)
         h, m = divmod(m, 60)
         return f"{h:02d}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
 
 
 class SecureSetting(Base):
+    """Sensitive configuration encrypted at rest (see app.core.security).
+
+    The value is never stored in plaintext; it is decrypted only in memory
+    when explicitly requested.
     """
-    Configuración sensible cifrada en reposo (ver app/core/security.py).
-    El valor jamás se guarda en texto plano; solo se descifra en memoria
-    cuando se solicita explícitamente.
-    """
+
     __tablename__ = "secure_settings"
 
     key: Mapped[str] = mapped_column(String(100), primary_key=True)
@@ -269,7 +293,8 @@ class SecureSetting(Base):
 
 
 class UserPreference(Base):
-    """Preferencias de interfaz por usuario (p. ej. idioma en/es)."""
+    """Per-user UI preferences (e.g., language en/es)."""
+
     __tablename__ = "user_preferences"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -287,11 +312,13 @@ class UserPreference(Base):
 
 
 class RememberedSession(Base):
+    """'Remember me' session token.
+
+    The raw token is never stored; only its SHA-256 hash is persisted. It
+    expires according to ``settings.security.remember_credentials_days``
+    (0 means no expiration). A user has at most one active token.
     """
-    Token de 'recordar sesión'. Nunca se guarda el token crudo, solo su hash
-    SHA-256. Expira según ``settings.security.remember_credentials_days``
-    (0 = sin expiración). Un usuario tiene a lo sumo un token activo.
-    """
+
     __tablename__ = "remembered_sessions"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

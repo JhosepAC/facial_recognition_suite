@@ -90,7 +90,7 @@ def test_save_setting_updates_runtime_and_is_restored_next_load(temp_config):
 
 
 def test_save_setting_rejects_non_editable_key(temp_config):
-    with pytest.raises(ValueError, match="no editable"):
+    with pytest.raises(ValueError, match=r"not editable"):
         save_setting("security", "lockout_attempts", 3)
 
 

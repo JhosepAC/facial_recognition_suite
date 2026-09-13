@@ -1,10 +1,10 @@
-"""
-Carga y expone la configuración global de la aplicación a partir de config/settings.yaml.
+"""Load and expose global application configuration from config/settings.yaml.
 
-Uso:
+Usage:
     from app.core.config import settings
     print(settings.database.path)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field, fields
@@ -23,10 +23,20 @@ _SOURCE_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _is_frozen() -> bool:
+    """Return True when running from a PyInstaller bundle.
+
+    Returns:
+        True if the app is frozen, False otherwise.
+    """
     return bool(getattr(sys, "frozen", False))
 
 
 def _user_data_root() -> Path:
+    """Return the per-user data directory for the packaged app.
+
+    Returns:
+        Path to the FaceScan data root.
+    """
     base = os.environ.get("LOCALAPPDATA") or str(Path.home())
     return Path(base) / "FaceScan"
 
@@ -43,6 +53,8 @@ LOGO_PATH = BUNDLE_DIR / "facescan.jpg"
 
 @dataclass
 class AppSettings:
+    """General application settings."""
+
     name: str = "FaceScan"
     version: str = APP_VERSION
     theme: str = "dark"
@@ -51,12 +63,16 @@ class AppSettings:
 
 @dataclass
 class DatabaseSettings:
+    """Database connection settings."""
+
     path: str = "data/biovision.db"
     echo_sql: bool = False
 
 
 @dataclass
 class VisionSettings:
+    """Face detection and quality-gate settings."""
+
     detector_backend: str = "insightface"
     detector_model: str = "buffalo_l"
     det_size: List[int] = field(default_factory=lambda: [640, 640])
@@ -74,6 +90,8 @@ class VisionSettings:
 
 @dataclass
 class RecognitionSettings:
+    """Biometric matching and ANN index settings."""
+
     similarity_metric: str = "cosine"
     match_threshold: float = 0.55
     top_k_results: int = 5
@@ -91,6 +109,8 @@ class RecognitionSettings:
 
 @dataclass
 class CameraSettings:
+    """Webcam capture settings."""
+
     default_index: int = 0
     frame_width: int = 960
     frame_height: int = 540
@@ -102,6 +122,8 @@ class CameraSettings:
 
 @dataclass
 class VideoSettings:
+    """Video file analysis settings."""
+
     allowed_extensions: List[str] = field(
         default_factory=lambda: [".mp4", ".avi", ".mov", ".mkv"]
     )
@@ -115,6 +137,8 @@ class VideoSettings:
 
 @dataclass
 class StorageSettings:
+    """Filesystem storage locations."""
+
     photos_dir: str = "data/photos"
     thumbnails_dir: str = "data/thumbnails"
     exports_dir: str = "exports"
@@ -123,6 +147,8 @@ class StorageSettings:
 
 @dataclass
 class SecuritySettings:
+    """Authentication and session security settings."""
+
     session_timeout_minutes: int = 30
     max_session_minutes: int = 0
     remember_credentials_days: int = 30
@@ -136,6 +162,8 @@ class SecuritySettings:
 
 @dataclass
 class LoggingSettings:
+    """Logging output settings."""
+
     level: str = "INFO"
     rotation: str = "10 MB"
     retention: str = "30 days"
@@ -143,6 +171,8 @@ class LoggingSettings:
 
 @dataclass
 class Settings:
+    """Root settings container aggregating all groups."""
+
     app: AppSettings = field(default_factory=AppSettings)
     database: DatabaseSettings = field(default_factory=DatabaseSettings)
     vision: VisionSettings = field(default_factory=VisionSettings)
@@ -154,25 +184,47 @@ class Settings:
     logging: LoggingSettings = field(default_factory=LoggingSettings)
 
     def resolve_path(self, relative: str) -> Path:
-        """Convierte una ruta relativa del YAML en una ruta absoluta bajo BASE_DIR."""
+        """Resolve a YAML-relative path to an absolute path under BASE_DIR.
+
+        Args:
+            relative: Relative or absolute path string.
+
+        Returns:
+            Absolute path.
+        """
         p = Path(relative)
         return p if p.is_absolute() else (BASE_DIR / p)
 
 
 def _known_fields(cls, data: dict) -> dict:
-    """Filtra un dict del YAML a los campos declarados por el dataclass.
+    """Filter a YAML dict to the dataclass declared fields.
 
-    B7: una clave desconocida o mal escrita en settings.yaml (p. ej. un typo
-    en ``lockout_attempts``) no debe tumbar la aplicación al importar; los
-    valores no reconocidos se ignoran y se usa el valor por defecto.
+    Unknown or misspelled keys in settings.yaml (e.g., a typo in
+    ``lockout_attempts``) must not crash the application at import time;
+    unrecognized values are ignored and defaults are used.
+
+    Args:
+        cls: Target dataclass.
+        data: Raw dict from YAML.
+
+    Returns:
+        Filtered dict with only known fields.
     """
     known = {f.name for f in fields(cls)}
     return {k: v for k, v in data.items() if k in known}
 
 
 def _build_settings(raw: dict) -> Settings:
+    """Build a Settings instance from raw YAML data.
+
+    Args:
+        raw: Parsed YAML dictionary.
+
+    Returns:
+        Populated Settings instance.
+    """
     app_raw = dict(raw.get("app", {}))
-    app_raw["version"] = APP_VERSION  # única fuente de verdad
+    app_raw["version"] = APP_VERSION  # Single source of truth.
 
     return Settings(
         app=AppSettings(**_known_fields(AppSettings, app_raw)),
@@ -190,10 +242,15 @@ def _build_settings(raw: dict) -> Settings:
 
 
 def _load_settings() -> Settings:
+    """Load settings from disk or return defaults.
+
+    Returns:
+        Loaded Settings instance.
+    """
     if not CONFIG_PATH.exists():
-        # En la app congelada el YAML viaja en el bundle de solo lectura; se
-        # siembra en %LOCALAPPDATA%\FaceScan\config la primera vez para que
-        # el usuario pueda personalizarlo (misma política que en desarrollo).
+        # In the frozen app the YAML is bundled read-only; seed it under
+        # %LOCALAPPDATA%\\FaceScan\\config on first run so the user can
+        # customize it (same policy as in development).
         bundled = BUNDLE_DIR / "config" / "settings.yaml"
         if _is_frozen() and bundled.exists():
             CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -221,7 +278,14 @@ _EDITABLE_SETTINGS: dict[str, set[str]] = {
 
 
 def _yaml_inline(value) -> str:
-    """Serializa un valor permitido como texto YAML de una sola línea."""
+    """Serialize an allowed value as single-line YAML text.
+
+    Args:
+        value: Value to serialize.
+
+    Returns:
+        YAML inline representation.
+    """
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, float):
@@ -234,20 +298,28 @@ def _yaml_inline(value) -> str:
 
 
 def save_setting(section: str, key: str, value) -> None:
-    """
-    Actualiza un ajuste de runtime (memoria) y lo persiste en settings.yaml
-    preservando los comentarios del archivo (reescritura por línea, sin
-    re-parseo completo del YAML).
+    """Update a runtime setting (in memory) and persist it to settings.yaml.
+
+    Preserves file comments by rewriting line-by-line without a full YAML
+    re-parse.
+
+    Args:
+        section: Settings group name.
+        key: Setting key within the group.
+        value: New value to save.
+
+    Raises:
+        ValueError: If the setting is not editable or does not exist.
     """
     if section not in _EDITABLE_SETTINGS or key not in _EDITABLE_SETTINGS[section]:
-        raise ValueError(f"Ajuste no editable por la GUI: {section}.{key}")
+        raise ValueError(f"Setting not editable via GUI: {section}.{key}")
     group = getattr(settings, section, None)
     if group is None or not hasattr(group, key):
-        raise ValueError(f"Ajuste inexistente: {section}.{key}")
+        raise ValueError(f"Setting does not exist: {section}.{key}")
     setattr(group, key, value)
 
     if not CONFIG_PATH.exists():
-        warnings.warn(f"No se encontró settings.yaml; ajuste solo en memoria: {section}.{key}")
+        warnings.warn(f"settings.yaml not found; setting kept in memory only: {section}.{key}")
         return
 
     pattern = re.compile(rf"^(\s*{re.escape(key)}\s*:\s*).*?(\s*#.*)?\s*$")
@@ -277,4 +349,4 @@ def save_setting(section: str, key: str, value) -> None:
     if changed:
         CONFIG_PATH.write_text("".join(lines), encoding="utf-8")
     else:
-        warnings.warn(f"Clave no encontrada en settings.yaml: {section}.{key}")
+        warnings.warn(f"Key not found in settings.yaml: {section}.{key}")
