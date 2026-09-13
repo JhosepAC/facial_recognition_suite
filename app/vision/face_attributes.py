@@ -1,37 +1,34 @@
+"""Extended facial analysis: glasses, mask, beard, moustache, smile, and open eyes.
+
+100% local implementation on MediaPipe FaceMesh (the 468/478-point landmark model
+is bundled in the ``mediapipe`` library, so no downloads or internet access are
+required), complemented by geometric and texture classifiers on OpenCV.
+
+Important note: glasses/mask/beard/moustache are heuristic approximations (no
+trained neural classifier for them exists in this project). Metrics are computed
+over geometrically defined regions derived from landmarks (eye band, chin,
+moustache, forehead) by comparing edge density and relative luminance. They work
+reasonably on frontal, sharp shots (the same regime already required by the
+quality gate) but should not be treated as a definitive biometric verdict:
+
+  - eyes_open / smile: derived from landmark geometry (Eye Aspect Ratio and mouth
+    widening), well-established methods.
+  - glasses: horizontal edge density in the eye band vs. the cheek (frames create
+    intense horizontal lines).
+  - mask: very low texture in the lower third and closed mouth (a smooth fabric
+    blurs the chin/mouth, removing edges).
+  - beard / moustache: edge density (hair) on chin / nasolabial area vs. the
+    cheek (smooth skin) as reference.
+  - eye_color / hair_color: discrete color classifiers (HSV) over the aligned
+    face — iris (indices 468/473) and upper forehead band. Highly sensitive to
+    illumination and aligned crop; ``None`` when no clear evidence. Also
+    approximations, not a verdict.
+
+Global activation is governed by ``settings.vision.enable_face_attributes`` and,
+when anything fails (model unavailable, face too small), ``analyze`` returns
+``None`` instead of breaking recognition.
 """
-Análisis facial extendido: gafas, mascarilla, barba, bigote, sonrisa y ojos
-abiertos.
 
-Implementación 100 % local sobre MediaPipe FaceMesh (el modelo de landmarks —
-468/478 puntos — viene empaquetado en la librería `mediapipe`, así que NO
-necesita descargas ni conexión a Internet), complementado con clasificadores
-geométricos y de textura sobre OpenCV.
-
-Aviso importante: gafas/mascarilla/barba/bigote son *aproximaciones
-heurísticas* (no hay un clasificador neuronal entrenado para ellos en este
-proyecto). Las métricas se calculan sobre regiones definidas geométricamente
-a partir de los landmarks (banda de ojos, mentón, bigote, frente) comparando
-densidad de bordes y luminancia relativa. Funcionan razonablemente en tomas
-frontales y nítidas (el mismo régimen que exige ya el gate de calidad), pero
-no deben tratarse como un veredicto biométrico definitivo:
-
-  - ojos_abiertos / sonrisa: se derivan de la geometría de los landmarks
-    (Eye Aspect Ratio y ensanchamiento de la boca), métodos bien establecidos.
-  - gafas: densidad de bordes horizontales en la banda de los ojos frente a
-    la mejilla (los aros/monturas generan líneas horizontales intensas).
-  - mascarilla: textura del tercio inferior muy baja y boca cerrada (una tela
-    lisa difumina el mentón/boca, que dejan de aportar bordes).
-  - barba / bigote: densidad de bordes (vello) en mentón / zona naso-labial
-    frente a la mejilla (piel lisa) como referencia.
-  - color_ojos / color_pelo: clasificadores discretos de color (HSV) sobre el
-    rostro alineado — iris (índices 468/473) y banda superior de la frente.
-    Muy sensibles a la iluminación y al recorte alineado; ``None`` cuando no
-    hay evidencia clara. También son aproximaciones, no un veredicto.
-
-La activación global se gobierna con `settings.vision.enable_face_attributes`
-y, cuando algo falla (modelo no disponible, rostro demasiado pequeño), el
-método `analyze` devuelve ``None`` en lugar de romper el reconocimiento.
-"""
 from __future__ import annotations
 
 import threading
@@ -44,53 +41,54 @@ from app.core.config import settings
 from app.core.logger import logger
 from app.vision.face_quality import align_face
 
-# --- Índices de landmarks de MediaPipe FaceMesh (con refine_landmarks llega a 478) ---
+# --- MediaPipe FaceMesh landmark indices (478 with refine_landmarks) ---
 LEFT_EYE = [33, 160, 158, 133, 153, 144]
 RIGHT_EYE = [362, 385, 387, 263, 373, 380]
-MOUTH_CORNERS = [61, 291]          # comisuras exteriores de la boca
-NOSE_TIP = 4                        # punta de la nariz
-CHIN = 152                          # barbilla
-NOSE_BRIDGE = 6                     # zona alta de la nariz (referencia frente)
+MOUTH_CORNERS = [61, 291]  # Outer mouth corners.
+NOSE_TIP = 4  # Nose tip.
+CHIN = 152  # Chin.
+NOSE_BRIDGE = 6  # Upper nose bridge (forehead reference).
 EYEBROW_LEFT, EYEBROW_RIGHT = 70, 300
-CHEEK_LEFT, CHEEK_RIGHT = 234, 454  # mejillas laterales
+CHEEK_LEFT, CHEEK_RIGHT = 234, 454  # Lateral cheeks.
 
-# --- Iris (modelo 478 puntos con refine_landmarks) para el color de ojos ---
+# --- Iris (478-point model with refine_landmarks) for eye color ---
 LEFT_IRIS_CENTER = 468
 RIGHT_IRIS_CENTER = 473
 
-# --- Etiquetas discretas de color (ojo/pelo): fuentes de verdad para UI/filtros ---
+# --- Discrete color labels (eye/hair): single source of truth for UI/filters ---
 EYE_COLOR_LABELS = ("negro", "marrón", "azul", "verde", "gris")
 HAIR_COLOR_LABELS = ("negro", "castaño", "rubio", "pelirrojo", "gris", "canoso")
 
-# --- Umbrales heurísticos (documentados; artefacto de calibración empírica) ---
-EYE_OPEN_EAR = 0.200      # EAR medio bajo el cual se considera "ojos cerrados"
-SMILE_WIDTH_RATIO = 0.52  # ancho de boca / distancia interpupilar que indica sonrisa
-MASK_TEXTURE_RATIO = 0.55  # (textura mentón / mejilla) bajo el cual se sospecha mascarilla
-HAIR_TEXTURE_RATIO = 1.35  # (textura vello / mejilla) sobre el cual se decide barba/bigote
-GLASSES_TEXTURE_RATIO = 1.30  # (bordes ojo / mejilla) sobre el cual se sospecha gafas
+# --- Heuristic thresholds (documented; empirically calibrated) ---
+EYE_OPEN_EAR = 0.200  # Average EAR below which eyes are considered closed.
+SMILE_WIDTH_RATIO = 0.52  # Mouth width / interocular distance indicating smile.
+MASK_TEXTURE_RATIO = 0.55  # (chin texture / cheek) below which mask is suspected.
+HAIR_TEXTURE_RATIO = 1.35  # (hair texture / cheek) above which beard/moustache decided.
+GLASSES_TEXTURE_RATIO = 1.30  # (eye edges / cheek) above which glasses suspected.
 
-ALIGN_SIZE = 96            # plantilla de alineación que ya produce face_quality
-MESH_SIZE = 192            # tamaño de trabajo para MediaPipe (192x192 es óptimo)
+ALIGN_SIZE = 96  # Alignment template already produced by face_quality.
+MESH_SIZE = 192  # Working size for MediaPipe (192x192 is optimal).
 
 ATTR_FIELDS = ("gafas", "mascarilla", "barba", "bigote", "sonrisa", "ojos_abiertos")
 
 
 @dataclass
 class FaceAttributes:
-    """Conjunto de atributos faciales extendidos de un rostro detectado.
+    """Extended facial attributes for a detected face.
 
-    Cada atributo es un booleano decidido por umbral, pero se conservan las
-    probabilidades crudas (0..1) en ``conf`` para un diagnóstico más fino y
-    para futuros ajustes de umbral sin re-procesar imágenes.
+    Each attribute is a thresholded boolean, but raw probabilities (0..1) are
+    kept in ``conf`` for finer diagnostics and future threshold tuning without
+    reprocessing images.
 
-    ``edad`` y ``genero`` provienen del modelo de atributos de InsightFace
-    (buffalo_l) en el momento de la captura; se guardan junto al análisis de
-    MediaPipe para tener la ficha facial completa en un solo JSON.
+    ``edad`` and ``genero`` come from the InsightFace attribute model (buffalo_l)
+    at capture time; they are stored alongside the MediaPipe analysis to keep the
+    complete facial record in a single JSON.
 
-    ``color_ojos`` y ``color_pelo`` son clasificaciones discretas (heurísticas
-    de color sobre el rostro alineado), aproximadas y dependientes de la
-    iluminación; ``None`` indica que no se pudo decidir con confianza.
+    ``color_ojos`` and ``color_pelo`` are discrete color classifications (color
+    heuristics over the aligned face), approximate and illumination-dependent;
+    ``None`` means no confident decision could be made.
     """
+
     gafas: bool = False
     mascarilla: bool = False
     barba: bool = False
@@ -104,9 +102,19 @@ class FaceAttributes:
     color_pelo: str | None = None
 
     def as_booleans(self) -> dict[str, bool]:
+        """Return attributes as a boolean dictionary.
+
+        Returns:
+            Dict mapping field names to booleans.
+        """
         return {name: bool(getattr(self, name)) for name in ATTR_FIELDS}
 
     def to_dict(self) -> dict:
+        """Serialize to a dictionary for JSON storage.
+
+        Returns:
+            Dictionary with booleans, conf, age, gender, and colors.
+        """
         return {
             **self.as_booleans(),
             "conf": dict(self.conf),
@@ -118,6 +126,14 @@ class FaceAttributes:
 
     @classmethod
     def from_dict(cls, data) -> "FaceAttributes | None":
+        """Deserialize from a dictionary.
+
+        Args:
+            data: Dictionary with attribute data.
+
+        Returns:
+            FaceAttributes instance or None if data is invalid.
+        """
         if not data or not isinstance(data, dict):
             return None
         edad = data.get("edad")
@@ -140,10 +156,18 @@ class FaceAttributes:
 
 
 # --------------------------------------------------------------------------- #
-# Geometría (Eye Aspect Ratio, apertura de boca)
+# Geometry (Eye Aspect Ratio, mouth opening)
 # --------------------------------------------------------------------------- #
 def eye_aspect_ratio(landmarks: np.ndarray, indices: list[int]) -> float:
-    """Eye Aspect Ratio de un ojo (EAR). ~0.28 abierto, ~0.10 cerrado."""
+    """Compute Eye Aspect Ratio (EAR) for one eye. ~0.28 open, ~0.10 closed.
+
+    Args:
+        landmarks: Full landmark array.
+        indices: Six indices defining the eye.
+
+    Returns:
+        EAR value.
+    """
     p = [np.asarray(landmarks[i], dtype=float) for i in indices]
     if any(p[i].size < 2 for i in range(6)):
         return 0.0
@@ -155,30 +179,73 @@ def eye_aspect_ratio(landmarks: np.ndarray, indices: list[int]) -> float:
 
 
 def _pair_distance(landmarks: np.ndarray, a: int, b: int) -> float:
+    """Return Euclidean distance between two landmarks.
+
+    Args:
+        landmarks: Landmark array.
+        a: First index.
+        b: Second index.
+
+    Returns:
+        Distance.
+    """
     return float(np.linalg.norm(np.asarray(landmarks[a], dtype=float)
                                 - np.asarray(landmarks[b], dtype=float)))
 
 
 def _point(landmarks: np.ndarray, i: int) -> np.ndarray:
+    """Return a landmark point as an array.
+
+    Args:
+        landmarks: Landmark array.
+        i: Index.
+
+    Returns:
+        Point coordinates.
+    """
     return np.asarray(landmarks[i], dtype=float)
 
 
 def _midpoint(landmarks: np.ndarray, a: int, b: int) -> np.ndarray:
+    """Return the midpoint between two landmarks.
+
+    Args:
+        landmarks: Landmark array.
+        a: First index.
+        b: Second index.
+
+    Returns:
+        Midpoint coordinates.
+    """
     return (_point(landmarks, a) + _point(landmarks, b)) / 2.0
 
 
 # --------------------------------------------------------------------------- #
-# Métricas puras (evaluables sin MediaPipe, usadas también en tests)
+# Pure metrics (testable without MediaPipe)
 # --------------------------------------------------------------------------- #
 def metric_eyes_open(landmarks: np.ndarray) -> float:
-    """0..1: promedio del EAR de ambos ojos."""
+    """Compute eyes-open metric (0..1) as average EAR of both eyes.
+
+    Args:
+        landmarks: Landmark array.
+
+    Returns:
+        Average EAR clipped to [0, 1].
+    """
     return float(np.clip(
         (eye_aspect_ratio(landmarks, LEFT_EYE)
          + eye_aspect_ratio(landmarks, RIGHT_EYE)) / 2.0, 0.0, 1.0))
 
 
 def metric_smile(landmarks: np.ndarray) -> float:
-    """0..1: ensanchamiento de la boca vs distance interpupilar."""
+    """Compute smile metric (0..1) as mouth widening vs interocular distance.
+
+    Args:
+        landmarks: Landmark array.
+
+    Returns:
+        Mouth width ratio clipped to [0, 1].
+    """
     interocular = float(np.linalg.norm(
         _midpoint(landmarks, 33, 133) - _midpoint(landmarks, 362, 263)))
     if interocular <= 1e-6:
@@ -189,10 +256,21 @@ def metric_smile(landmarks: np.ndarray) -> float:
 
 def _gradient_density(gray: np.ndarray, x0: int, y0: int, x1: int, y1: int,
                       thresh: int = 40) -> float:
-    """Fracción (0..1) de píxeles con gradiente fuerte en una ROI.
+    """Compute fraction (0..1) of pixels with strong gradient in an ROI.
 
-    Umbral sobre la magnitud sobresaturada de Sobel. Valor alto = región
-    texturizada (vello, monturas); valor bajo = superficie lisa (piel, tela).
+    Threshold is applied to Sobel magnitude. High value means textured region
+    (hair, frames); low value means smooth surface (skin, fabric).
+
+    Args:
+        gray: Grayscale image.
+        x0: Left coordinate.
+        y0: Top coordinate.
+        x1: Right coordinate.
+        y1: Bottom coordinate.
+        thresh: Sobel magnitude threshold.
+
+    Returns:
+        Gradient density in [0, 1].
     """
     h, w = gray.shape[:2]
     x0, y0 = max(0, int(x0)), max(0, int(y0))
@@ -208,15 +286,35 @@ def _gradient_density(gray: np.ndarray, x0: int, y0: int, x1: int, y1: int,
 
 def _roi_box(landmarks: np.ndarray, cx: float, cy: float,
              half_w: float, y0: float, y1: float) -> tuple[int, int, int, int]:
-    """Caja de ROI centrada en (cx, cy) con media anchura y bandas verticales."""
+    """Build an ROI box centered at (cx, cy) with half-width and vertical bands.
+
+    Args:
+        landmarks: Unused, kept for signature compatibility.
+        cx: Center x.
+        cy: Center y.
+        half_w: Half width.
+        y0: Top offset.
+        y1: Bottom offset.
+
+    Returns:
+        ROI box as (x0, y0, x1, y1).
+    """
     return (int(cx - half_w), int(cy + y0), int(cx + half_w), int(cy + y1))
 
 
 # --------------------------------------------------------------------------- #
-# Clasificadores de región (sobre el rostro alineado de MESH_SIZE px)
+# Region classifiers (on MESH_SIZE px aligned face)
 # --------------------------------------------------------------------------- #
 def _geometry(landmarks: np.ndarray, gray: np.ndarray) -> dict:
-    """Calcula puntos clave y métricas regionales de una sola vez."""
+    """Compute key points and regional metrics at once.
+
+    Args:
+        landmarks: Landmark array in aligned image coordinates.
+        gray: Grayscale aligned face.
+
+    Returns:
+        Dictionary with geometric metrics.
+    """
     eye_left_c = _midpoint(landmarks, 33, 133)
     eye_right_c = _midpoint(landmarks, 362, 263)
     interocular = float(np.linalg.norm(eye_right_c - eye_left_c)) + 1e-6
@@ -227,7 +325,7 @@ def _geometry(landmarks: np.ndarray, gray: np.ndarray) -> dict:
     mouth_close = min(
         eye_aspect_ratio(landmarks, [61, 0, 13, 291, 14, 17]) * 4.0, 1.0)
 
-    # Regiones (coordenadas en píxeles del rostro alineado).
+    # Regions (coordinates in aligned face pixels).
     eye_band = _roi_box(landmarks, cx, eye_mid_y,
                         interocular * 0.85, -0.45 * interocular, 0.22 * interocular)
     cheek_band = _roi_box(landmarks, cx, (eye_mid_y + mouth_c[1]) / 2,
@@ -255,10 +353,13 @@ def _geometry(landmarks: np.ndarray, gray: np.ndarray) -> dict:
 
 
 def default_thresholds() -> dict[str, float]:
-    """Umbrales de decisión por atributo (0..1 sobre la confianza cruda).
+    """Return decision thresholds per attribute (0..1 over raw confidence).
 
-    Fuente única de verdad para la calibración: la GUI la ajusta en tiempo
-    real y el clasificador solo aplica lo que aquí llegue.
+    Single source of truth for calibration: the GUI adjusts them in real time
+    and the classifier only applies what is passed here.
+
+    Returns:
+        Dictionary of attribute thresholds.
     """
     return {
         "gafas": 0.5,
@@ -272,16 +373,31 @@ def default_thresholds() -> dict[str, float]:
 
 def classify_from_conf(conf: dict | None,
                        thresholds: dict[str, float] | None = None) -> FaceAttributes:
-    """Clasifica los seis atributos a partir de las confianzas crudas (0..1).
+    """Classify six attributes from raw confidences (0..1).
 
-    ``thresholds`` permite sobreescribir umbrales por atributo sin recalcular
-    el modelo; si no se pasa, se usan ``default_thresholds()``. Es la función
-    que también re-clasifica las confianzas ya almacenadas para calibrar.
+    ``thresholds`` allows overriding per-attribute thresholds without
+    recomputing the model; defaults to ``default_thresholds()``. This also
+    re-classifies already stored confidences for calibration.
+
+    Args:
+        conf: Raw confidence dictionary.
+        thresholds: Optional threshold overrides.
+
+    Returns:
+        Classified FaceAttributes.
     """
     conf = dict(conf or {})
     thresholds = {**default_thresholds(), **(thresholds or {})}
 
     def decided(field: str) -> bool:
+        """Check if a field exceeds its threshold.
+
+        Args:
+            field: Attribute field name.
+
+        Returns:
+            True if above threshold.
+        """
         return float(conf.get(field, 0.0)) >= float(thresholds.get(field, 0.5))
 
     return FaceAttributes(
@@ -296,20 +412,36 @@ def classify_from_conf(conf: dict | None,
 
 
 # --------------------------------------------------------------------------- #
-# Color de ojos / pelo (heurísticas HSV sobre el rostro alineado)
+# Eye / hair color (HSV heuristics on aligned face)
 # --------------------------------------------------------------------------- #
 def _clean_color(value, labels: tuple[str, ...]) -> str | None:
+    """Validate a color value against allowed labels.
+
+    Args:
+        value: Candidate value.
+        labels: Allowed labels.
+
+    Returns:
+        Validated color or None.
+    """
     if isinstance(value, str) and value in labels:
         return value
     return None
 
 
 def classify_eye_color_hsv(h: float, s: float, v: float) -> str:
-    """Clasifica el color del iris (HSV 0-180 / 0-255 / 0-255).
+    """Classify iris color from HSV (0-180 / 0-255 / 0-255).
 
-    Reglas empíricas: muy oscuro -> negro; poca saturación -> gris;
-    luego por matiz (marrón, verde, azul). Aproximación sensible a la
-    iluminación: se documenta como tal, no como veredicto biométrico.
+    Empirical rules: very dark -> black; low saturation -> gray; then by hue
+    (brown, green, blue). Approximation sensitive to illumination.
+
+    Args:
+        h: Hue.
+        s: Saturation.
+        v: Value.
+
+    Returns:
+        Color label.
     """
     if v < 35:
         return "negro"
@@ -325,7 +457,16 @@ def classify_eye_color_hsv(h: float, s: float, v: float) -> str:
 
 
 def classify_hair_color_hsv(h: float, s: float, v: float) -> str:
-    """Clasifica el color del cabello (HSV 0-180 / 0-255 / 0-255)."""
+    """Classify hair color from HSV (0-180 / 0-255 / 0-255).
+
+    Args:
+        h: Hue.
+        s: Saturation.
+        v: Value.
+
+    Returns:
+        Color label.
+    """
     if v < 45:
         return "negro"
     if s < 25:
@@ -341,7 +482,20 @@ def _roi_hsv_median(image_bgr: np.ndarray,
                     x0: int, y0: int, x1: int, y1: int,
                     center: tuple[int, int] | None = None,
                     radius: int = 0) -> tuple[float, float, float] | None:
-    """Mediana HSV de una ROI (o de un cuadrado centrado en ``center``)."""
+    """Compute median HSV of an ROI (or a square centered at ``center``).
+
+    Args:
+        image_bgr: BGR image.
+        x0: Left coordinate.
+        y0: Top coordinate.
+        x1: Right coordinate.
+        y1: Bottom coordinate.
+        center: Optional center point (y, x).
+        radius: Radius around center.
+
+    Returns:
+        Median (h, s, v) or None if ROI is too small.
+    """
     if center is not None:
         y, x = center
         x0, y0 = x - radius, y - radius
@@ -361,7 +515,15 @@ def _roi_hsv_median(image_bgr: np.ndarray,
 
 
 def metric_eye_color(image_bgr: np.ndarray, landmarks: np.ndarray) -> str | None:
-    """Color discreto de ojos muestreando el iris (índices 468/473)."""
+    """Classify discrete eye color by sampling the iris (indices 468/473).
+
+    Args:
+        image_bgr: Aligned BGR face image.
+        landmarks: Landmark array.
+
+    Returns:
+        Color label or None if not determinable.
+    """
     if landmarks.shape[0] <= RIGHT_IRIS_CENTER:
         return None
     eye_left = _point(landmarks, 33)
@@ -390,11 +552,18 @@ def metric_eye_color(image_bgr: np.ndarray, landmarks: np.ndarray) -> str | None
 
 
 def metric_hair_color(image_bgr: np.ndarray, landmarks: np.ndarray) -> str | None:
-    """Color discreto del cabello muestreando la banda superior de la frente.
+    """Classify discrete hair color sampling the upper forehead band.
 
-    Compara la banda "pelo" con una referencia de piel (frente); si resulta
-    indistinguishable de la piel, el cabello no queda dentro del encuadre
-    alineado y se devuelve ``None``.
+    Compares the "hair" band with a skin reference (forehead); if
+    indistinguishable from skin, hair is not in the aligned frame and ``None``
+    is returned.
+
+    Args:
+        image_bgr: Aligned BGR face image.
+        landmarks: Landmark array.
+
+    Returns:
+        Color label or None.
     """
     eye_left = _point(landmarks, 33)
     eye_right = _point(landmarks, 362)
@@ -416,7 +585,7 @@ def metric_hair_color(image_bgr: np.ndarray, landmarks: np.ndarray) -> str | Non
         int(eye_mid_y - 0.95 * interocular))
     if hair_med is None or skin_med is None:
         return None
-    # Si la banda superior es prácticamente la misma piel, no hay pelo visible.
+    # If the upper band is essentially the same skin, no visible hair.
     if (abs(hair_med[0] - skin_med[0]) < 18
             and abs(hair_med[2] - skin_med[2]) < 18):
         return None
@@ -424,18 +593,23 @@ def metric_hair_color(image_bgr: np.ndarray, landmarks: np.ndarray) -> str | Non
 
 
 def classify_aligned(landmarks: np.ndarray, image_bgr: np.ndarray) -> FaceAttributes:
-    """Clasifica los seis atributos (más color de ojos/pelo) desde el rostro alineado.
+    """Classify six attributes (plus eye/hair color) from the aligned face.
 
-    ``landmarks``: (N, 2) en píxeles de la imagen ``image_bgr`` (N=478 con iris,
-    MediaPipe FaceMesh). Función pura: también usada en las pruebas con datos
-    sintéticos.
+    Args:
+        landmarks: (N, 2) in pixels of ``image_bgr`` (N=478 with iris,
+            MediaPipe FaceMesh). Pure function, also used in tests with
+            synthetic data.
+        image_bgr: Aligned BGR face image.
+
+    Returns:
+        Populated FaceAttributes.
     """
     gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
     ears = metric_eyes_open(landmarks)
     smile = metric_smile(landmarks)
     g = _geometry(landmarks, gray)
 
-    eyes_factor = ears / EYE_OPEN_EAR       # >1 = abierto con holgura
+    eyes_factor = ears / EYE_OPEN_EAR  # >1 means comfortably open.
     smile_factor = smile / SMILE_WIDTH_RATIO
     conf = {
         "ojos_abiertos": float(np.clip(eyes_factor, 0.0, 1.0)),
@@ -457,36 +631,45 @@ def classify_aligned(landmarks: np.ndarray, image_bgr: np.ndarray) -> FaceAttrib
 
 
 # --------------------------------------------------------------------------- #
-# Analizador con MediaPipe FaceMesh (lazy, offline)
+# Analyzer with MediaPipe FaceMesh (lazy, offline)
 # --------------------------------------------------------------------------- #
 class FaceAttributeAnalyzer:
-    """Envoltura perezosa sobre `mediapipe.solutions.face_mesh` (modelo incluido).
+    """Lazy wrapper around ``mediapipe.solutions.face_mesh`` (bundled model).
 
-    Singleton por proceso, igual que FaceEngine: la carga del modelo de
-    landmarks ocurre solo en el primer análisis, nunca al importar.
+    Process-wide singleton, like FaceEngine: landmark model loading occurs only
+    on first analysis, never at import time.
     """
 
     _instance: "FaceAttributeAnalyzer | None" = None
 
     def __init__(self):
+        """Initialize the analyzer (model loaded lazily)."""
         self._mesh = None
         self._load_failed = False
         self._lock = threading.RLock()
 
     @classmethod
     def instance(cls) -> "FaceAttributeAnalyzer":
+        """Return the singleton instance.
+
+        Returns:
+            Shared FaceAttributeAnalyzer.
+        """
         if cls._instance is None:
             cls._instance = FaceAttributeAnalyzer()
         return cls._instance
 
     @property
     def is_loaded(self) -> bool:
+        """Whether the FaceMesh model is loaded."""
         return self._mesh is not None
 
     def warmup(self) -> None:
+        """Preload the FaceMesh model synchronously."""
         self._ensure_loaded()
 
     def _ensure_loaded(self) -> None:
+        """Load the FaceMesh model lazily, thread-safe."""
         if self._mesh is not None or self._load_failed:
             return
         with self._lock:
@@ -495,26 +678,34 @@ class FaceAttributeAnalyzer:
             try:
                 from mediapipe.python.solutions import face_mesh as mp_face_mesh
 
-                logger.info("Cargando modelo de landmarks faciales (MediaPipe)…")
+                logger.info("Loading facial landmark model (MediaPipe)...")
                 self._mesh = mp_face_mesh.FaceMesh(
                     static_image_mode=True,
                     max_num_faces=1,
                     refine_landmarks=True,
                     min_detection_confidence=0.3,
                 )
-                logger.info("Modelo de landmarks faciales cargado.")
+                logger.info("Facial landmark model loaded.")
             except Exception as exc:  # noqa: BLE001
-                logger.warning("No se pudo inicializar MediaPipe FaceMesh: {}", exc)
+                logger.warning("Could not initialize MediaPipe FaceMesh: {}", exc)
                 self._mesh = None
                 self._load_failed = True
 
     def analyze(self, bgr_image: np.ndarray, bbox, landmarks5) -> FaceAttributes | None:
-        """Analiza un rostro ya detectado por InsightFace.
+        """Analyze a face already detected by InsightFace.
 
-        Normaliza el rostro con la plantilla de `face_quality.align_face`
-        (misma geometría en todas las tomas), corre MediaPipe sobre ella y
-        clasifica. Devuelve ``None`` si el modelo no está disponible, el refinado
-        falla o el atributo extendido está desactivado.
+        Normalizes the face with the ``face_quality.align_face`` template (same
+        geometry for all shots), runs MediaPipe on it, and classifies. Returns
+        ``None`` if the model is unavailable, refinement fails, or extended
+        attributes are disabled.
+
+        Args:
+            bgr_image: Source BGR image.
+            bbox: Face bounding box (unused, kept for API symmetry).
+            landmarks5: 5-point landmarks from InsightFace.
+
+        Returns:
+            FaceAttributes or None.
         """
         if not settings.vision.enable_face_attributes:
             return None
@@ -540,5 +731,5 @@ class FaceAttributeAnalyzer:
             ], dtype=np.float32)
             return classify_aligned(points, work)
         except Exception as exc:  # noqa: BLE001
-            logger.debug("Análisis facial extendido omitido para este rostro: {}", exc)
+            logger.debug("Extended facial analysis skipped for this face: {}", exc)
             return None

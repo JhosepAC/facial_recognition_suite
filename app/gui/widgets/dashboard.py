@@ -1,9 +1,8 @@
-"""
-Dashboard — vista de inicio.
+"""Dashboard — landing view.
 
-Saludo de bienvenida y un resumen de la actividad reciente de
-reconocimiento. Se mantiene intencionalmente simple: las métricas y
-gráficos viven en el módulo de Estadísticas.
+Welcome greeting and a summary of recent recognition activity. Kept
+intentionally simple: detailed metrics and charts live in the
+Statistics module.
 """
 from __future__ import annotations
 
@@ -11,17 +10,26 @@ from datetime import datetime
 
 from PySide6.QtCore import QDate, QLocale
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QVBoxLayout,
+    QWidget,
 )
 
-from app.database.session import get_session
 from app.database.models import RecognitionEvent
+from app.database.session import get_session
 from app.gui import icons
 from app.i18n import bus as i18n_bus
 from app.i18n import current_language, tr
 
 
 def _greeting() -> str:
+    """Return a time-based greeting key.
+
+    Returns:
+        Localized greeting string.
+    """
     hour = datetime.now().hour
     if hour < 12:
         return tr("dashboard.greeting_morning")
@@ -31,15 +39,27 @@ def _greeting() -> str:
 
 
 def _today_text() -> str:
+    """Return the current date formatted for the active locale.
+
+    Returns:
+        Formatted date string (e.g., "Monday, August 9, 2026").
+    """
     lang = current_language()
     locale = QLocale(lang if lang == "es" else "en")
-    # Español: "lunes 9 de agosto de 2026" · Inglés: "Monday, August 9, 2026"
+    # Spanish: "lunes 9 de agosto de 2026" · English: "Monday, August 9, 2026"
     fmt = "dddd d 'de' MMMM 'de' yyyy" if lang == "es" else "dddd, MMMM d, yyyy"
     return locale.toString(QDate.currentDate(), fmt)
 
 
 class DashboardWidget(QWidget):
+    """Landing dashboard with greeting and recent activity."""
+
     def __init__(self, parent=None):
+        """Initialize the dashboard widget.
+
+        Args:
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -79,11 +99,13 @@ class DashboardWidget(QWidget):
         self.refresh()
 
     def _retranslate(self, _language: str | None = None) -> None:
+        """Retranslate greeting and section titles."""
         self.saludo_label.setText(f"{_greeting()}, {tr('dashboard.welcome')}")
         self.fecha_label.setText(_today_text())
         self.actividad_title.setText(tr("dashboard.recent_activity"))
 
     def refresh(self) -> None:
+        """Reload recent recognition events and rebuild the list."""
         with get_session() as session:
             ultimos = (
                 session.query(RecognitionEvent)

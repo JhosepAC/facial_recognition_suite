@@ -1,6 +1,6 @@
 # BioVision Suite (FaceScan) — Facial Biometric Analysis Platform
 
-> **Language:** English | [Español](README-es.md)
+> **Idioma:** [English](README.md) | **Español**
 
 <div align="center">
 
@@ -21,7 +21,7 @@
 
 ---
 
-## 📑 Table of Contents
+## 📑 Tabla de Contenidos
 
 1. [Overview and Value Proposition](#-overview-and-value-proposition)
 2. [Key Features](#-key-features)
@@ -40,7 +40,7 @@
 
 ---
 
-## 🌟 Overview and Value Proposition
+## 🌟 Vision General y Propuesta de Valor
 
 **BioVision Suite** provides a robust, self-contained solution for facial biometric analysis. Unlike alternatives that depend on cloud services or external APIs, BioVision Suite runs all inference and storage **strictly locally**:
 
@@ -51,7 +51,7 @@
 
 ---
 
-## ✨ Key Features
+## ✨ Caracteristicas Principales
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
@@ -80,7 +80,7 @@
 
 ---
 
-## 🚀 Quick Start — How to Run and Test
+## 🚀 Inicio Rapido — Como Ejecutar y Probar
 
 This is the fastest way to verify the installation. Copy-paste the commands for your OS. Total time: ~5 minutes + model download (~300 MB, first run only).
 
@@ -166,11 +166,11 @@ python -m pytest                        # Linux/macOS
 | `ModelLoadError` on first run | Check internet connection; retry; verify `%USERPROFILE%\.insightface\models\` |
 | `Cannot open camera index 0` | Close other apps using the camera; try index 1 in Webcam module |
 | App feels slow on video | Increase `video.sample_interval_frames` in `config/settings.yaml` |
-| Forgot admin password | See `docs/en/installation_guide.md` → Recovery section |
+| Forgot admin password | See `docs/es/guia_instalacion.md` → Recovery section |
 
 ---
 
-## 🏗️ System Architecture and Technical Foundations
+## 🏗️ Arquitectura del Sistema y Fundamentos Tecnicos
 
 Strict **Layered Architecture** decoupled via modern design patterns (*Repository Pattern*, *Service Layer*, *Lazy Singleton* and *Dependency Injection*).
 
@@ -266,7 +266,7 @@ Strict **Layered Architecture** decoupled via modern design patterns (*Repositor
 | **Report Generation** | `openpyxl==3.1.5` + `reportlab==4.2.2` | Enriched spreadsheets and executive vector PDF reports. |
 | **Test Suite** | `pytest==8.3.2` | 199 unit and integration tests without graphical dependencies. |
 
-## 📁 Project Structure
+## 📁 Estructura del Proyecto
 
 ```
 facial_recognition_suite/
@@ -345,16 +345,7 @@ facial_recognition_suite/
 │   ├── thumbnails/                    # Fast-view thumbnails
 │   └── video_evidence/                # Forensic evidence crops
 │
-├── docs/                              # Complete technical documentation
-│   ├── en/                              # Documentation in English
-│   │   ├── installation_guide.md      # Detailed installation guide
-│   │   ├── user_manual.md             # Operational user manual
-│   │   ├── technical_manual.md        # Architecture and algorithms manual
-│   │   ├── developer_guide.md         # Guide to extend the platform
-│   │   └── diagrams/                  # Architecture and UML class diagrams
-│   │       ├── architecture.png
-│   │       ├── class_diagram.png
-│   │       └── generate_diagrams.py
+├── docs/                              # Documentación técnica completa
 │   ├── es/                              # Documentación en español
 │   │   ├── guia_instalacion.md        # Guía detallada de instalación
 │   │   ├── manual_usuario.md          # Manual operativo de usuario
@@ -364,6 +355,15 @@ facial_recognition_suite/
 │   │       ├── arquitectura.png
 │   │       ├── uml_clases.png
 │   │       └── generar_diagramas.py
+│   ├── en/                              # Documentation in English
+│   │   ├── installation_guide.md      # Detailed installation guide
+│   │   ├── user_manual.md             # Operational user manual
+│   │   ├── technical_manual.md        # Architecture and algorithms manual
+│   │   ├── developer_guide.md         # Guide to extend the platform
+│   │   └── diagrams/                  # Architecture and UML class diagrams
+│   │       ├── architecture.png
+│   │       ├── class_diagram.png
+│   │       └── generate_diagrams.py
 │
 ├── exports/                           # Report and export output folder
 ├── logs/                              # Execution logs (app.log) and audit (audit.log)
@@ -377,7 +377,7 @@ facial_recognition_suite/
 
 ---
 
-## 💻 System Requirements
+## 💻 Requisitos del Sistema
 
 ### Hardware Requirements
 
@@ -395,7 +395,7 @@ facial_recognition_suite/
 
 ---
 
-## 🚀 Installation and Setup
+## 🚀 Instalacion y Configuracion
 
 ### 1. Clone the repository
 
@@ -461,7 +461,7 @@ On first launch:
 
 ---
 
-## 📖 Detailed Process and Operation Guide
+## 📖 Guia Detallada de Procesos y Operacion
 
 ### Process 1: Registration and Biometric Enrollment
 The **Persons** module enrolls new subjects in the biometric database:
@@ -557,7 +557,7 @@ Automated processing of video recordings (CCTV, local files):
 
 ---
 
-## ⚙️ Global Configuration (`settings.yaml`)
+## ⚙️ Configuracion Global (`settings.yaml`)
 
 The [`config/settings.yaml`](config/settings.yaml) file parametrizes all system modules:
 
@@ -584,7 +584,7 @@ The [`config/settings.yaml`](config/settings.yaml) file parametrizes all system 
 
 ---
 
-## 🔒 Security, Access Control and Backup
+## 🔒 Seguridad, Control de Acceso y Respaldo
 
 * **Sensitive Configuration Encryption**: The suite generates a local symmetric key in `config/.secret.key` (git-ignored). Confidential values are encrypted at rest with **Fernet** (AES-128-CBC + HMAC-SHA256) inside the `secure_settings` table.
 * **Brute-Force Protection**: Progressive throttling on authentication attempts and strict lockout after the configured limit.
@@ -593,7 +593,7 @@ The [`config/settings.yaml`](config/settings.yaml) file parametrizes all system 
 
 ---
 
-## 🧪 Quality Assurance and Automated Tests
+## 🧪 Aseguramiento de Calidad y Pruebas Automatizadas
 
 The project includes **199 automated tests** validating business logic, mathematical algorithms, repositories, security policies and export services, running decoupled from the GUI and heavy models via test doubles (*mocks* and in-memory SQLite sessions):
 
@@ -620,7 +620,7 @@ pytest --cov=app tests/
 
 ---
 
-## ⚖️ Regulatory Compliance and Data Privacy
+## ⚖️ Cumplimiento Normativo y Privacidad de Datos
 
 Biometric facial data is **sensitive personal data**:
 
@@ -631,19 +631,19 @@ Biometric facial data is **sensitive personal data**:
 
 ---
 
-## 📚 Additional Documentation
+## 📚 Documentacion Adicional
 
-For extended technical documentation, see the [`docs/`](docs/) folder:
+Para documentación técnica extendida, ver la carpeta [`docs/`](docs/):
 
-* 📘 [**User Manual (`docs/en/user_manual.md`)**](docs/en/user_manual.md): Detailed usage guide for each module for operators.
-* ⚙️ [**Technical Manual (`docs/en/technical_manual.md`)**](docs/en/technical_manual.md): Internal architecture, design patterns and mathematical models.
-* 🛠️ [**Installation Guide (`docs/en/installation_guide.md`)**](docs/en/installation_guide.md): Instructions for Windows, Linux, macOS and air-gapped deployment.
-* 💻 [**Developer Guide (`docs/en/developer_guide.md`)**](docs/en/developer_guide.md): Code conventions and guide to add modules and tests.
-* 📊 [**Architecture and UML Diagrams (`docs/en/diagrams/`)**](docs/en/diagrams/): Structural and relational system diagrams.
+* 📘 [**Manual de Usuario (`docs/es/manual_usuario.md`)**](docs/es/manual_usuario.md): Guía detallada de uso de cada módulo para operadores.
+* ⚙️ [**Manual Técnico (`docs/es/manual_tecnico.md`)**](docs/es/manual_tecnico.md): Arquitectura interna, patrones de diseño y modelos matemáticos.
+* 🛠️ [**Guía de Instalación (`docs/es/guia_instalacion.md`)**](docs/es/guia_instalacion.md): Instrucciones para Windows, Linux, macOS y despliegue air-gapped.
+* 💻 [**Guía del Desarrollador (`docs/es/guia_desarrolladores.md`)**](docs/es/guia_desarrolladores.md): Convenciones de código y guía para añadir módulos y pruebas.
+* 📊 [**Diagramas de Arquitectura y UML (`docs/es/diagramas/`)**](docs/es/diagramas/): Diagramas estructurales y relacionales del sistema.
 
 ---
 
-## 📄 License and Credits
+## 📄 Licencia y Creditos
 
 * **License**: Proprietary / Institutional Use. All rights reserved.
 * **Vision Models**: Developed and trained by the open-source community of **InsightFace** and **MediaPipe**.

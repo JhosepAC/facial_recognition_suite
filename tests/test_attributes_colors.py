@@ -1,6 +1,6 @@
 """
-Tests de la clasificación de color (ojos/pelo) por HSV y del filtro de color
-en la búsqueda comparativa. No dependen de insightface/mediapipe.
+Tests for HSV-based color classification (eyes/hair) and for the color filter
+in comparative search. Does not depend on insightface/mediapipe.
 """
 import pytest
 

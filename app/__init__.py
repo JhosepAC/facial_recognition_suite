@@ -1,5 +1,5 @@
-"""FaceScan — Plataforma de análisis biométrico facial (local, offline)."""
+"""FaceScan — Local, offline facial biometric analysis platform."""
 
-# Fuente única de la versión de la aplicación. Otros módulos (config, GUI,
-# empaquetado) deben importar esta constante en lugar de duplicar el número.
-__version__ = "1.0.0"
+# Single source of truth for the application version. Other modules (config, GUI,
+# packaging) must import this constant instead of duplicating the number.
+__version__ = "1.1.0"
