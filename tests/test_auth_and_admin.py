@@ -1,6 +1,4 @@
-"""
-Tests del módulo de Administración y Seguridad (Fase 4).
-"""
+"""Tests for the Administration and Security module (Phase 4)."""
 import shutil
 import sqlite3
 from datetime import datetime, timedelta
@@ -10,7 +8,7 @@ import pytest
 from app.core.exceptions import AuthenticationError, AuthorizationError, BioVisionError
 from app.core.permissions import PERM_ADMIN, PERM_PERSONAS
 from app.database.base import Base
-from app.database.models import Person, Role, User
+from app.database.models import Person, User
 from app.services.admin_service import AdminService
 from app.services.auth_service import AuthService, hash_password, validate_password_policy, verify_password
 
@@ -40,7 +38,7 @@ def admin_and_operador(session):
 
 
 # ------------------------------------------------------------------ #
-# Hash / política de contraseñas
+# Hash / password policy
 # ------------------------------------------------------------------ #
 def test_hash_and_verify_password_roundtrip():
     h = hash_password("MiClaveSegura1")
@@ -58,11 +56,11 @@ def test_validate_password_policy_rejects_short_password():
 
 
 def test_validate_password_policy_accepts_valid_password():
-    validate_password_policy("ClaveValida123")  # no debe lanzar
+    validate_password_policy("ClaveValida123")  # should not raise
 
 
 # ------------------------------------------------------------------ #
-# Configuración inicial (primer arranque)
+# Initial setup (first launch)
 # ------------------------------------------------------------------ #
 def test_create_initial_admin_seeds_default_roles(session):
     admin_svc = AdminService(session)
@@ -82,7 +80,7 @@ def test_create_initial_admin_fails_if_users_exist(session):
 
 
 # ------------------------------------------------------------------ #
-# Autenticación
+# Authentication
 # ------------------------------------------------------------------ #
 def test_authenticate_success_updates_login_fields(session, admin_and_operador):
     admin, operador, _ = admin_and_operador
@@ -117,9 +115,9 @@ def test_account_locks_after_max_failed_attempts(session, admin_and_operador):
         with pytest.raises(AuthenticationError):
             auth.authenticate("operador1", "clave_incorrecta")
 
-    # Aunque ahora se use la contraseña CORRECTA, debe seguir bloqueada.
-    # El mensaje es genérico: no revela que la cuenta está bloqueada.
-    with pytest.raises(AuthenticationError, match="Usuario o contraseña incorrectos"):
+    # Even with the CORRECT password it must remain locked.
+    # The message is generic: it does not reveal that the account is locked.
+    with pytest.raises(AuthenticationError, match="Invalid username or password"):
         auth.authenticate("operador1", "Clave1234")
 
 
@@ -127,7 +125,7 @@ def test_account_unlocks_after_lockout_expires(session, admin_and_operador):
     auth = AuthService(session)
     user = AdminService(session).users.get_by_username("operador1")
     user.intentos_fallidos = 999
-    user.bloqueado_hasta = datetime.utcnow() - timedelta(minutes=1)  # el bloqueo ya expiró
+    user.bloqueado_hasta = datetime.utcnow() - timedelta(minutes=1)  # lock has already expired
     session.commit()
 
     logged_in = auth.authenticate("operador1", "Clave1234")
@@ -140,12 +138,12 @@ def test_authenticate_inactive_account_raises(session, admin_and_operador):
     AdminService(session).set_user_active(operador.id, False, usuario_actor="admin")
 
     auth = AuthService(session)
-    with pytest.raises(AuthenticationError, match="Usuario o contraseña incorrectos"):
+    with pytest.raises(AuthenticationError, match="Invalid username or password"):
         auth.authenticate("operador1", "Clave1234")
 
 
 # ------------------------------------------------------------------ #
-# Permisos
+# Permissions
 # ------------------------------------------------------------------ #
 def test_admin_has_all_permissions_via_wildcard(session, admin_and_operador):
     admin, _, _ = admin_and_operador
@@ -169,7 +167,7 @@ def test_require_permission_raises_authorization_error(session, admin_and_operad
 
 
 # ------------------------------------------------------------------ #
-# Gestión de usuarios
+# User management
 # ------------------------------------------------------------------ #
 def test_create_user_duplicate_username_raises(session, admin_and_operador):
     _, _, roles = admin_and_operador
@@ -212,7 +210,7 @@ def test_delete_user(session, admin_and_operador):
 
 
 # ------------------------------------------------------------------ #
-# Gestión de roles
+# Role management
 # ------------------------------------------------------------------ #
 def test_create_role_duplicate_name_raises(session, admin_and_operador):
     admin_svc = AdminService(session)
@@ -243,7 +241,7 @@ def test_delete_role_succeeds_if_unused(session, admin_and_operador):
 
 
 # ------------------------------------------------------------------ #
-# Configuración sensible cifrada
+# Encrypted sensitive settings
 # ------------------------------------------------------------------ #
 def test_secure_setting_roundtrip_and_encryption_at_rest(session, admin_and_operador):
     admin_svc = AdminService(session)
@@ -251,7 +249,7 @@ def test_secure_setting_roundtrip_and_encryption_at_rest(session, admin_and_oper
                                   usuario_actor="admin")
 
     raw = admin_svc.secrets.get("api_key_test")
-    assert b"valor-super-secreto" not in raw.value_encrypted  # nunca en texto plano en la BD
+    assert b"valor-super-secreto" not in raw.value_encrypted  # never in plain text in the DB
 
     value = admin_svc.get_secure_setting("api_key_test")
     assert value == "valor-super-secreto"
@@ -265,7 +263,7 @@ def test_secure_setting_delete(session, admin_and_operador):
 
 
 # ------------------------------------------------------------------ #
-# Limpieza de base de datos
+# Database cleanup
 # ------------------------------------------------------------------ #
 def test_cleanup_database_removes_data_but_keeps_users(session, admin_and_operador, tmp_path, monkeypatch):
     from app.core.config import settings
@@ -284,11 +282,11 @@ def test_cleanup_database_removes_data_but_keeps_users(session, admin_and_operad
 
     assert result["personas_eliminadas"] == 3
     assert session.query(Person).count() == 0
-    assert session.query(User).count() == 2  # admin + operador se preservan
+    assert session.query(User).count() == 2  # admin + operador are preserved
 
 
 # ------------------------------------------------------------------ #
-# Restauración de base de datos
+# Database restore
 # ------------------------------------------------------------------ #
 _MINIMAL_SCHEMA = """
     CREATE TABLE persons (uuid TEXT PRIMARY KEY, nombre TEXT, apellidos TEXT);
@@ -334,7 +332,7 @@ def test_restore_database(tmp_path, monkeypatch):
 
     LiveSession = sessionmaker(bind=create_engine(f"sqlite:///{live_db_path}"))
     live_session = LiveSession()
-    AdminService(live_session).create_initial_admin("admin", "ClaveSegura123")  # actor del guard
+    AdminService(live_session).create_initial_admin("admin", "ClaveSegura123")  # guard actor
 
     monkeypatch.setattr(settings.database, "path", str(live_db_path))
 
@@ -420,7 +418,7 @@ def test_restore_database_rejects_corrupt_backup(tmp_path, monkeypatch, session,
     backup_db = tmp_path / "corrupto.db"
     conn = sqlite3.connect(str(backup_db))
     conn.executescript(_MINIMAL_SCHEMA)
-    # Datos grandes: fuerzan páginas de datos más allá de la primera
+    # Large data: forces data pages beyond the first one.
     conn.execute(
         "INSERT INTO persons (uuid, nombre, apellidos) VALUES (?, ?, ?)",
         ("p1", "Original", "User" * 5000),
@@ -428,7 +426,7 @@ def test_restore_database_rejects_corrupt_backup(tmp_path, monkeypatch, session,
     conn.commit()
     conn.close()
 
-    # Truncar el archivo: las páginas de datos quedan fuera del EOF -> malformed
+    # Truncate the file: data pages fall beyond EOF -> malformed.
     backup_db.write_bytes(backup_db.read_bytes()[:2048])
 
     with pytest.raises(BioVisionError, match="integridad|SQLite"):
@@ -436,7 +434,7 @@ def test_restore_database_rejects_corrupt_backup(tmp_path, monkeypatch, session,
 
 
 # ------------------------------------------------------------------ #
-# Fase 5 (T1/M9): la restauración limpia los archivos WAL huérfanos
+# Phase 5 (T1/M9): restore cleans up orphaned WAL files
 # ------------------------------------------------------------------ #
 def test_restore_cleans_stale_wal_files(tmp_path):
     from app.services.admin_service import _remove_stale_wal_files
@@ -454,7 +452,7 @@ def test_restore_cleans_stale_wal_files(tmp_path):
 
 
 # ------------------------------------------------------------------ #
-# Recordar sesión (token; nunca se persiste la contraseña)
+# Remember session (token; password is never persisted)
 # ------------------------------------------------------------------ #
 def test_create_and_authenticate_remembered_token(session, admin_and_operador):
     _, operador, _ = admin_and_operador
@@ -472,7 +470,7 @@ def test_remembered_token_is_hashed_in_db(session, admin_and_operador):
     auth = AuthService(session)
     token = auth.create_remembered_token(operador)
     row = session.query(RememberedSession).filter_by(user_id=operador.id).one()
-    assert row.token_hash != token  # el token crudo jamás se persiste
+    assert row.token_hash != token  # raw token is never persisted
     assert len(row.token_hash) == 64  # SHA-256
 
 
@@ -530,12 +528,12 @@ def test_remembered_token_does_not_bypass_2fa(session, admin_and_operador):
     token = auth.create_remembered_token(operador)
     with pytest.raises(TwoFactorRequiredError):
         auth.authenticate_remembered_token(token)
-    # El token se conserva: el login normal lo rotará tras completar el 2FA.
+    # Token is preserved: normal login will rotate it after completing 2FA.
     assert session.query(RememberedSession).filter_by(user_id=operador.id).count() == 1
 
 
 # ------------------------------------------------------------------ #
-# Fase 5 (M10): el auto-login por token recordado queda auditado
+# Phase 5 (M10): auto-login via remembered token is audited
 # ------------------------------------------------------------------ #
 def test_remembered_token_auto_login_is_audited(session, admin_and_operador):
     from app.database.models import AuditLog
@@ -568,7 +566,7 @@ def test_remembered_token_blocked_account_rejected(session, admin_and_operador):
 
 
 # ------------------------------------------------------------------ #
-# Fase 2 (M12): cambiar/restablecer la contraseña revoca los tokens
+# Phase 2 (M12): changing/resetting password revokes tokens
 # ------------------------------------------------------------------ #
 def test_change_own_password_revokes_remembered_token(session, admin_and_operador):
     from app.database.models import RememberedSession
@@ -604,7 +602,7 @@ def test_admin_reset_password_revokes_remembered_token(session, admin_and_operad
 
 
 # ------------------------------------------------------------------ #
-# Fase 2 (M15): desactivar/eliminar usuarios revoca sus tokens
+# Phase 2 (M15): deactivating/deleting users revokes their tokens
 # ------------------------------------------------------------------ #
 def test_deactivate_user_revokes_remembered_token(session, admin_and_operador):
     admin, operador, _ = admin_and_operador
@@ -630,7 +628,7 @@ def test_delete_user_revokes_remembered_token(session, admin_and_operador):
 
 
 # ------------------------------------------------------------------ #
-# Fase 2 (M13): operaciones 2FA requieren ser administrador en servicios
+# Phase 2 (M13): 2FA operations require admin at service layer
 # ------------------------------------------------------------------ #
 def test_totp_operations_require_admin(session, admin_and_operador):
     _, operador, _ = admin_and_operador
@@ -644,7 +642,7 @@ def test_totp_operations_require_admin(session, admin_and_operador):
 
 
 # ------------------------------------------------------------------ #
-# Fase 7 (T3): flujo completo de 2FA a nivel de servicio
+# Phase 7 (T3): complete 2FA flow at service level
 # ------------------------------------------------------------------ #
 def test_generate_totp_secret_returns_base32(session):
     secret = AuthService(session).generate_totp_secret()
@@ -658,7 +656,7 @@ def test_configure_totp_wrong_code_raises_and_does_not_enable(session, admin_and
     auth = AuthService(session)
     secret = generate_secret()
 
-    with pytest.raises(AuthenticationError, match="código de verificación"):
+    with pytest.raises(AuthenticationError, match="Verification code"):
         auth.configure_totp(operador, secret, "000000")
 
     session.refresh(operador)
@@ -675,10 +673,10 @@ def test_configure_totp_enables_and_login_requires_code(session, admin_and_opera
     auth.configure_totp(operador, secret, current_code(secret))
     assert operador.totp_enabled is True
 
-    # Sin el código, la contraseña sola ya no basta.
-    with pytest.raises(AuthenticationError, match="código de verificación"):
+    # Without the code, password alone is no longer enough.
+    with pytest.raises(AuthenticationError, match="Verification code"):
         auth.authenticate("operador1", "Clave1234")
-    # Con el código correcto, entra.
+    # With the correct code, login succeeds.
     user = auth.authenticate("operador1", "Clave1234", current_code(secret))
     assert user.username == "operador1"
 
@@ -697,7 +695,7 @@ def test_totp_uri_contains_account_and_secret(session, admin_and_operador):
 
 def test_totp_uri_without_secret_raises(session, admin_and_operador):
     _, operador, _ = admin_and_operador
-    with pytest.raises(BioVisionError, match="secreto TOTP"):
+    with pytest.raises(BioVisionError, match="TOTP secret"):
         AuthService(session).totp_uri(operador)
 
 
@@ -712,7 +710,7 @@ def test_disable_totp_restores_password_only_login(session, admin_and_operador):
     assert operador.totp_enabled is False
     assert operador.totp_secret is None
 
-    # La contraseña vuelve a ser suficiente.
+    # Password is sufficient again.
     user = auth.authenticate("operador1", "Clave1234")
     assert user.username == "operador1"
 

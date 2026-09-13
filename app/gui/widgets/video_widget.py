@@ -40,12 +40,12 @@ ESTADO_GLYPHS = {
     "cancelado": ("close", icons.COLOR_MUTED),
 }
 
-# Periodo en ms del temporizador de reproducción continua.
+# Interval in ms for the continuous playback timer.
 PLAYBACK_MS = 50
 
 
 # ====================================================================== #
-# Hilo de trabajo: procesa el video sin bloquear la interfaz
+# Worker thread: process video without blocking the UI
 # ====================================================================== #
 class VideoProcessingWorker(QThread):
     progress = Signal(int, int)     # frames_procesados, total_frames
@@ -83,7 +83,7 @@ class VideoProcessingWorker(QThread):
 
 
 # ====================================================================== #
-# Zona de importación (arrastrar y soltar / selector de archivo)
+# Import zone (drag & drop / file picker)
 # ====================================================================== #
 class VideoDropArea(QFrame):
     file_selected = Signal(str)
@@ -128,7 +128,7 @@ class VideoDropArea(QFrame):
 
 
 # ====================================================================== #
-# Chips: métrica del job y persona detectada
+# Chips: job metric and detected person
 # ====================================================================== #
 class MetricChip(QFrame):
     def __init__(self, icon_name: str, value: str, label: str, color: str = icons.COLOR_MUTED,
@@ -202,7 +202,7 @@ class PersonChip(QFrame):
 
 
 class PersonFilterChip(QPushButton):
-    """Chip clicable con la miniatura y nombre de una persona detectada."""
+    """Clickable chip with thumbnail and name of a detected person."""
 
     def __init__(self, nombre: str, thumbnail: str | None, count: int, parent=None):
         super().__init__(parent)
@@ -218,10 +218,10 @@ class PersonFilterChip(QPushButton):
 
 
 # ====================================================================== #
-# Vista previa del video: redimensiona con el contenedor (mantiene proporción)
+# Video preview: resizes with container (keeps aspect ratio)
 # ====================================================================== #
 class VideoPreviewWidget(QWidget):
-    """Muestra el frame actual escalado a todo el espacio disponible."""
+    """Show the current frame scaled to the available space."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -265,7 +265,7 @@ class VideoPreviewWidget(QWidget):
 
 
 # ====================================================================== #
-# Widget principal del módulo de Video
+# Main widget for the Video module
 # ====================================================================== #
 class VideoAnalysisWidget(QWidget):
     def __init__(self, username: str | None = None, parent=None):
@@ -342,7 +342,7 @@ class VideoAnalysisWidget(QWidget):
         root.setContentsMargins(24, 24, 24, 24)
         root.setSpacing(14)
 
-        # Cabecera
+        # Header
         header = QHBoxLayout()
         header.addWidget(icons.icon_label("movie", 22, "#6fa8ff"))
         title_col = QVBoxLayout()
@@ -357,7 +357,7 @@ class VideoAnalysisWidget(QWidget):
         header.addStretch()
         root.addLayout(header)
 
-        # --- Importación ---
+        # --- Import ---
         import_card = QFrame()
         import_card.setObjectName("Card")
         import_layout = QVBoxLayout(import_card)
@@ -420,10 +420,10 @@ class VideoAnalysisWidget(QWidget):
 
         root.addWidget(import_card)
 
-        # --- Splitter: trabajos | detalle ---
+        # --- Splitter: jobs | detail ---
         splitter = QSplitter(Qt.Horizontal)
 
-        # Panel izquierdo: lista de trabajos
+        # Left panel: job list
         jobs_frame = QFrame()
         jobs_frame.setObjectName("Card")
         jobs_layout = QVBoxLayout(jobs_frame)
@@ -469,7 +469,7 @@ class VideoAnalysisWidget(QWidget):
         jobs_layout.addWidget(self._jobs_hint)
         splitter.addWidget(jobs_frame)
 
-        # Panel derecho: detalle del trabajo seleccionado
+        # Right panel: selected job detail
         detail_frame = QFrame()
         detail_frame.setObjectName("Card")
         detail_layout = QVBoxLayout(detail_frame)
@@ -503,7 +503,7 @@ class VideoAnalysisWidget(QWidget):
         detail_header.addWidget(self.delete_btn)
         detail_layout.addLayout(detail_header)
 
-        # Métricas
+        # Metrics
         chips_row = QHBoxLayout()
         chips_row.setSpacing(10)
         self.chip_detecciones = MetricChip("visibility", "—", tr("webcam.detections"), "#6fa8ff")
@@ -517,7 +517,7 @@ class VideoAnalysisWidget(QWidget):
         chips_row.addStretch()
         detail_layout.addLayout(chips_row)
 
-        # Fila de personas detectadas (chips clicables)
+        # Row of detected persons (clickable chips)
         self._persons_label = QLabel(tr("video.persons_detected"))
         self._persons_label.setStyleSheet("color: #8f92a3; font-size: 12px;")
         detail_layout.addWidget(self._persons_label)
@@ -543,12 +543,12 @@ class VideoAnalysisWidget(QWidget):
         self.persons_scroll.setWidget(persons_host)
         detail_layout.addWidget(self.persons_scroll)
 
-        # Splitter vertical: vista previa | detecciones
+        # Vertical splitter: preview | detections
         self.detail_splitter = QSplitter(Qt.Vertical)
         self.detail_splitter.setChildrenCollapsible(False)
         self.detail_splitter.setStyleSheet("QSplitter::handle { background-color: transparent; }")
 
-        # Panel superior: reproducción
+        # Top panel: playback
         preview_pane = QWidget()
         preview_layout = QVBoxLayout(preview_pane)
         preview_layout.setContentsMargins(0, 0, 0, 0)
@@ -613,7 +613,7 @@ class VideoAnalysisWidget(QWidget):
 
         self.detail_splitter.addWidget(preview_pane)
 
-        # Panel inferior: tabla de detecciones
+        # Bottom panel: detections table
         table_panel = QWidget()
         table_layout = QVBoxLayout(table_panel)
         table_layout.setContentsMargins(0, 0, 0, 0)
@@ -666,7 +666,7 @@ class VideoAnalysisWidget(QWidget):
         splitter.setStretchFactor(1, 4)
         root.addWidget(splitter, stretch=1)
 
-        # Temporizador de reproducción continua
+        # Continuous playback timer
         self._play_timer = QTimer(self)
         self._play_timer.setInterval(PLAYBACK_MS)
         self._play_timer.timeout.connect(self._play_tick)
@@ -682,7 +682,7 @@ class VideoAnalysisWidget(QWidget):
         return menu
 
     # ------------------------------------------------------------------ #
-    # Importación / lanzamiento del análisis
+    # Import / launch analysis
     # ------------------------------------------------------------------ #
     def _pick_file(self) -> None:
         exts = " ".join(f"*{e}" for e in settings.video.allowed_extensions)
@@ -750,7 +750,7 @@ class VideoAnalysisWidget(QWidget):
         self._refresh_jobs_table()
 
     # ------------------------------------------------------------------ #
-    # Tabla de trabajos
+    # Jobs table
     # ------------------------------------------------------------------ #
     def _load_latest_completed_job(self) -> None:
         latest_id: int | None = None
@@ -804,7 +804,7 @@ class VideoAnalysisWidget(QWidget):
         self._load_job(item.data(Qt.UserRole))
 
     # ------------------------------------------------------------------ #
-    # Detalle del trabajo: métricas + detecciones + navegación
+    # Job detail: metrics + detections + navigation
     # ------------------------------------------------------------------ #
     def _reset_detail(self) -> None:
         self._current_job_id = None
@@ -926,7 +926,7 @@ class VideoAnalysisWidget(QWidget):
 
     def _rebuild_person_chips(self, persons: list[dict]) -> None:
         self._clear_person_chips()
-        # Se elimina el item de stretch que quedó: se reconstruye limpio.
+        # Remove the leftover stretch item: rebuild cleanly.
         self.persons_layout.addStretch()
         if not persons:
             self._persons_empty_label = QLabel(tr("video.persons_none"))
@@ -994,7 +994,7 @@ class VideoAnalysisWidget(QWidget):
         return f"{m:02d}:{s:02d}" if not h else f"{h:02d}:{m:02d}:{s:02d}"
 
     # ------------------------------------------------------------------ #
-    # Navegación por frames
+    # Frame navigation
     # ------------------------------------------------------------------ #
     def _on_detection_row_activated(self, row: int, _col: int) -> None:
         item = self.detections_table.item(row, 1)
@@ -1066,7 +1066,7 @@ class VideoAnalysisWidget(QWidget):
         self._render_frame(nxt)
 
     # ------------------------------------------------------------------ #
-    # Renderizado
+    # Rendering
     # ------------------------------------------------------------------ #
     def _draw_detections(self, frame: np.ndarray, detections: list[dict]) -> np.ndarray:
         display = frame.copy()

@@ -1,14 +1,14 @@
-"""
-Motor y fábrica de sesiones de SQLAlchemy.
+"""SQLAlchemy engine and session factory.
 
-Uso típico:
+Typical usage:
     from app.database.session import get_session, init_db
 
     init_db()
     with get_session() as session:
-        session.add(persona)
+        session.add(person)
         session.commit()
 """
+
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -21,7 +21,7 @@ from sqlalchemy import inspect as sqla_inspect
 from app.core.config import settings
 from app.core.logger import logger
 from app.database.base import Base
-from app.database import models  # noqa: F401  (registra los modelos en Base.metadata)
+from app.database import models  # noqa: F401  (register models in Base.metadata)
 
 _db_path = settings.resolve_path(settings.database.path)
 _db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -32,11 +32,17 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
 )
 
-# M9: en cada conexión, un timeout de espera ante bloqueos (los hilos de
-# fondo —webcam/video— compiten con la GUI) y synchronous=NORMAL, que con WAL
-# garantiza consistencia sin sacrificar rendimiento.
+# On each connection, set a blocking timeout (background threads — webcam/video
+# — compete with the GUI) and synchronous=NORMAL, which with WAL guarantees
+# consistency without sacrificing performance.
 @event.listens_for(engine, "connect")
 def _sqlite_pragmas(dbapi_connection, _connection_record) -> None:
+    """Apply SQLite pragmas for concurrency and durability.
+
+    Args:
+        dbapi_connection: Raw DB-API connection.
+        _connection_record: SQLAlchemy connection record (unused).
+    """
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA busy_timeout=5000")
     cursor.execute("PRAGMA synchronous=NORMAL")
@@ -44,11 +50,14 @@ def _sqlite_pragmas(dbapi_connection, _connection_record) -> None:
 
 
 def set_wal_mode(target_engine) -> None:
-    """Activa el journal WAL en un motor SQLite (persistente por archivo).
+    """Enable WAL journal mode on a SQLite engine (persistent per file).
 
-    WAL permite lectores concurrentes mientras se escribe (ideal con los
-    workers de fondo) y reduce el riesgo de corrupción por cortes. Se aplica
-    en ``init_db`` para la BD real y en los tests sobre motores temporales.
+    WAL allows concurrent readers while writing (ideal with background workers)
+    and reduces corruption risk on power loss. Applied in ``init_db`` for the
+    real DB and in tests on temporary engines.
+
+    Args:
+        target_engine: SQLAlchemy engine to configure.
     """
     with target_engine.connect() as connection:
         connection.exec_driver_sql("PRAGMA journal_mode=WAL")
@@ -57,7 +66,12 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
 def _add_columns_if_missing(table: str, columns: dict[str, str]) -> None:
-    """Migración ligera: agrega columnas faltantes a una tabla existente."""
+    """Lightweight migration: add missing columns to an existing table.
+
+    Args:
+        table: Table name.
+        columns: Mapping of column name to SQL definition.
+    """
     inspector = sqla_inspect(engine)
     if table not in inspector.get_table_names():
         return
@@ -68,14 +82,14 @@ def _add_columns_if_missing(table: str, columns: dict[str, str]) -> None:
                 connection.execute(
                     text(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
                 )
-                logger.info("Migración: columna {}.{} añadida", table, name)
+                logger.info("Migration: column {}.{} added", table, name)
 
 
 def init_db() -> None:
-    """Crea las tablas si no existen e incluye migraciones ligeras. Idempotente."""
+    """Create tables if missing and run lightweight migrations. Idempotent."""
     Base.metadata.create_all(bind=engine)
     set_wal_mode(engine)
-    # Migraciones para bases SQLite existentes (create_all no altera tablas viejas)
+    # Migrations for existing SQLite databases (create_all does not alter old tables).
     _add_columns_if_missing("recognition_events", {"det_confidence": "FLOAT"})
     _add_columns_if_missing(
         "video_detections",
@@ -87,11 +101,16 @@ def init_db() -> None:
         "users",
         {"totp_secret": "BLOB", "totp_enabled": "BOOLEAN"},
     )
-    logger.info("Base de datos inicializada en: {}", _db_path)
+    logger.info("Database initialized at: {}", _db_path)
 
 
 @contextmanager
 def get_session() -> Iterator[Session]:
+    """Provide a transactional scope for database operations.
+
+    Yields:
+        SQLAlchemy session with automatic commit/rollback handling.
+    """
     session = SessionLocal()
     try:
         yield session

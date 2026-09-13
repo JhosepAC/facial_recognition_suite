@@ -1,5 +1,7 @@
 # BioVision Suite (FaceScan) — Facial Biometric Analysis Platform
 
+> **Language:** English | [Español](README-es.md)
+
 <div align="center">
 
 [![Python Version](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
@@ -164,7 +166,7 @@ python -m pytest                        # Linux/macOS
 | `ModelLoadError` on first run | Check internet connection; retry; verify `%USERPROFILE%\.insightface\models\` |
 | `Cannot open camera index 0` | Close other apps using the camera; try index 1 in Webcam module |
 | App feels slow on video | Increase `video.sample_interval_frames` in `config/settings.yaml` |
-| Forgot admin password | See `docs/installation_guide.md` → Recovery section |
+| Forgot admin password | See `docs/en/installation_guide.md` → Recovery section |
 
 ---
 
@@ -344,11 +346,24 @@ facial_recognition_suite/
 │   └── video_evidence/                # Forensic evidence crops
 │
 ├── docs/                              # Complete technical documentation
-│   ├── installation_guide.md          # Detailed installation guide
-│   ├── user_manual.md                 # Operational user manual
-│   ├── technical_manual.md            # Architecture and algorithms manual
-│   ├── developer_guide.md             # Guide to extend the platform
-│   └── diagrams/                      # Architecture and UML class diagrams
+│   ├── en/                              # Documentation in English
+│   │   ├── installation_guide.md      # Detailed installation guide
+│   │   ├── user_manual.md             # Operational user manual
+│   │   ├── technical_manual.md        # Architecture and algorithms manual
+│   │   ├── developer_guide.md         # Guide to extend the platform
+│   │   └── diagrams/                  # Architecture and UML class diagrams
+│   │       ├── architecture.png
+│   │       ├── class_diagram.png
+│   │       └── generate_diagrams.py
+│   ├── es/                              # Documentación en español
+│   │   ├── guia_instalacion.md        # Guía detallada de instalación
+│   │   ├── manual_usuario.md          # Manual operativo de usuario
+│   │   ├── manual_tecnico.md          # Manual de arquitectura y algoritmos
+│   │   ├── guia_desarrolladores.md    # Guía para extender la plataforma
+│   │   └── diagramas/                 # Diagramas de arquitectura y clases UML
+│   │       ├── arquitectura.png
+│   │       ├── uml_clases.png
+│   │       └── generar_diagramas.py
 │
 ├── exports/                           # Report and export output folder
 ├── logs/                              # Execution logs (app.log) and audit (audit.log)
@@ -620,11 +635,11 @@ Biometric facial data is **sensitive personal data**:
 
 For extended technical documentation, see the [`docs/`](docs/) folder:
 
-* 📘 [**User Manual (`docs/user_manual.md`)**](docs/user_manual.md): Detailed usage guide for each module for operators.
-* ⚙️ [**Technical Manual (`docs/technical_manual.md`)**](docs/technical_manual.md): Internal architecture, design patterns and mathematical models.
-* 🛠️ [**Installation Guide (`docs/installation_guide.md`)**](docs/installation_guide.md): Instructions for Windows, Linux, macOS and air-gapped deployment.
-* 💻 [**Developer Guide (`docs/developer_guide.md`)**](docs/developer_guide.md): Code conventions and guide to add modules and tests.
-* 📊 [**Architecture and UML Diagrams (`docs/diagrams/`)**](docs/diagrams/): Structural and relational system diagrams.
+* 📘 [**User Manual (`docs/en/user_manual.md`)**](docs/en/user_manual.md): Detailed usage guide for each module for operators.
+* ⚙️ [**Technical Manual (`docs/en/technical_manual.md`)**](docs/en/technical_manual.md): Internal architecture, design patterns and mathematical models.
+* 🛠️ [**Installation Guide (`docs/en/installation_guide.md`)**](docs/en/installation_guide.md): Instructions for Windows, Linux, macOS and air-gapped deployment.
+* 💻 [**Developer Guide (`docs/en/developer_guide.md`)**](docs/en/developer_guide.md): Code conventions and guide to add modules and tests.
+* 📊 [**Architecture and UML Diagrams (`docs/en/diagrams/`)**](docs/en/diagrams/): Structural and relational system diagrams.
 
 ---
 

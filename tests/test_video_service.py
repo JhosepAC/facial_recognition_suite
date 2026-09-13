@@ -1,9 +1,9 @@
 """
-Tests del módulo de Video (Fase 2).
+Tests for the Video module (Phase 2).
 
-No dependen de insightface/PySide6: RecognitionService.recognize_frame se
-sustituye por un doble de prueba (monkeypatch) para validar la orquestación
-de VideoService sin requerir los modelos de IA reales.
+Does not depend on insightface/PySide6: RecognitionService.recognize_frame is
+replaced with a test double (monkeypatch) to validate VideoService
+orchestration without requiring the real AI models.
 """
 from pathlib import Path
 
@@ -23,7 +23,7 @@ from app.vision.video_processor import (
 
 @pytest.fixture()
 def sample_video(tmp_path) -> str:
-    """Genera un video sintético corto (60 frames, 30fps) para pruebas."""
+    """Generate a short synthetic video (60 frames, 30fps) for testing."""
     path = str(tmp_path / "sample.mp4")
     w, h, fps, n_frames = 640, 480, 30, 60
     writer = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
@@ -93,7 +93,7 @@ def test_crop_with_padding_stays_within_bounds():
 
 
 # ------------------------------------------------------------------ #
-# VideoService (orquestación completa)
+# VideoService (full orchestration)
 # ------------------------------------------------------------------ #
 def test_analyze_video_end_to_end(session, sample_video, monkeypatch, tmp_path):
     person = PersonRepository(session).add(
@@ -133,10 +133,10 @@ def test_analyze_video_end_to_end(session, sample_video, monkeypatch, tmp_path):
     assert job.total_frames == 60
     assert job.fps == pytest.approx(30.0, abs=0.5)
     assert len(progress_calls) > 0
-    assert progress_calls[-1][0] == job.total_frames  # progreso final = 100%
+    assert progress_calls[-1][0] == job.total_frames  # final progress = 100%
 
     detections = service.list_detections(job.id)
-    assert len(detections) == 6  # 60 frames / intervalo 10
+    assert len(detections) == 6  # 60 frames / interval 10
 
     matched = [d for d in detections if d.person_uuid == person.uuid]
     unmatched = [d for d in detections if d.person_uuid is None]
@@ -176,13 +176,13 @@ def test_delete_job_removes_evidence_files(session, sample_video, monkeypatch, t
     assert all(p.exists() for p in paths)
 
     service.delete_job(job.id)
-    session.commit()  # en producción esto lo hace get_session() al salir del "with"
+    session.commit()  # in production get_session() does this on context exit
     assert all(not p.exists() for p in paths)
     assert service.get_job(job.id) is None
 
 
 def test_analyze_video_caps_evidence_files(session, sample_video, monkeypatch, tmp_path):
-    """A4: videos largos no deben agotar el disco con evidencias ilimitadas."""
+    """A4: long videos must not exhaust disk with unbounded evidence files."""
     def fake_recognize_frame(self, image_bgr, person_lookup=None, log_event=False,
                               origen="video", usuario=None, log_only_matches=False):
         h, w = image_bgr.shape[:2]
@@ -199,14 +199,14 @@ def test_analyze_video_caps_evidence_files(session, sample_video, monkeypatch, t
     job = service.analyze_video(sample_video)
     detections = service.list_detections(job.id)
     assert len(detections) == 6
-    # Las detecciones siguen guardándose aunque se limite la evidencia en disco.
+    # Detections are still persisted even when evidence on disk is capped.
     with_evidence = [d for d in detections if d.evidencia_path is not None]
     assert len(with_evidence) == 2
     assert sum(1 for d in detections if d.evidencia_path is None) == 4
 
 
 # ------------------------------------------------------------------ #
-# Exportación de detecciones (CSV / Excel)
+# Detection export (CSV / Excel)
 # ------------------------------------------------------------------ #
 @pytest.fixture()
 def completed_job(session, sample_video, monkeypatch, tmp_path):
@@ -266,11 +266,11 @@ def test_export_detections_excel_styled(completed_job, tmp_path):
     headers = [ws_d.cell(row=1, column=c).value for c in range(1, 16)]
     assert headers == ["#", "Frame", "Tiempo (hh:mm:ss)", "Persona", "Confianza (%)",
                        "Conf. detección", "Distancia coseno", "Estado", "Evidencia",
-                       *attr_headers]
+                        *attr_headers]
     assert ws_d.freeze_panes == "A2"
     assert ws_d.auto_filter.ref is not None
-    assert ws_d.cell(row=2, column=9).value  # evidencia presente
-    assert ws_d.cell(row=2, column=10).value == "—"  # persona sin análisis facial
+    assert ws_d.cell(row=2, column=9).value  # evidence present
+    assert ws_d.cell(row=2, column=10).value == "—"  # person without facial analysis
 
     ws_sum = wb["Resumen"]
     assert "Análisis de video" in ws_sum["A1"].value

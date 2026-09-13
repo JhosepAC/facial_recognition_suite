@@ -1,16 +1,16 @@
 """
-Tests básicos de la capa de datos y del matcher biométrico.
-No dependen de insightface/PySide6 (no se prueba aquí la carga de modelos de IA).
+Basic tests for the data layer and the biometric matcher.
+
+Does not depend on insightface/PySide6 (AI model loading is not tested here).
 """
 import numpy as np
 import pytest
 
 from app.database.base import Base
-from app.database.models import Person, FaceEmbedding
+from app.database.models import Person
 from app.database.repositories.person_repository import PersonRepository
-from app.database.repositories.embedding_repository import EmbeddingRepository
-from app.utils.vector_utils import vector_to_bytes, bytes_to_vector, cosine_distance
 from app.recognition.matcher import compare_pair, rank_candidates, similarity_to_percent
+from app.utils.vector_utils import bytes_to_vector, vector_to_bytes
 
 
 @pytest.fixture()
@@ -52,7 +52,7 @@ def test_compare_identical_vectors_is_match():
 
 
 def test_compare_unrelated_vectors_low_percentage():
-    """Rostros sin relación no deben mostrar ~50% de similitud (regresión #50%)."""
+    """Unrelated faces must not show ~50% similarity (regression for 50% bug)."""
     rng = np.random.default_rng(42)
     a = rng.normal(size=512).astype(np.float32)
     b = rng.normal(size=512).astype(np.float32)
@@ -63,7 +63,7 @@ def test_compare_unrelated_vectors_low_percentage():
 
 
 def test_similarity_to_percent_is_calibrated_on_threshold():
-    """El porcentaje debe ser ~50% en el umbral y ~0% para no coincidencias."""
+    """Percentage should be ~50% at the threshold and ~0% for non-matches."""
     from app.core.config import settings
 
     threshold = settings.recognition.match_threshold
