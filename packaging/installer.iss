@@ -1,7 +1,7 @@
 ; =====================================================================
-; Instalador de FaceScan (Inno Setup 6.x)
-; Compilar con: ISCC.exe packaging\installer.iss
-; Requiere dist\FaceScan (salida de PyInstaller) ya construido.
+; FaceScan installer (Inno Setup 6.x)
+; Build with: ISCC.exe packaging/installer.iss
+; Requires dist\FaceScan (PyInstaller output) to be built first.
 ; =====================================================================
 
 #define AppName "FaceScan"
@@ -71,7 +71,7 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; WorkingDir: "
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
-; Los datos del usuario (BD, fotos, claves, logs) viven en %LOCALAPPDATA%\FaceScan
-; y se conservan al desinstalar la aplicación.
+; User data (DB, photos, keys, logs) lives in %LOCALAPPDATA%\FaceScan
+; and is preserved when the application is uninstalled.
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}\_internal\models"

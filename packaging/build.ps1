@@ -1,12 +1,12 @@
 <#
-Construcción de FaceScan v1.0.0:
+FaceScan v1.0.0 build pipeline:
   1. Tests
-  2. Recursos de marca (ico + wizard) y version_info.txt
-  3. Staging de modelos faciales (buffalo_l)
+  2. Branding resources (ico + wizard) and version_info.txt
+  3. Facial model staging (buffalo_l)
   4. PyInstaller (onedir -> dist\FaceScan)
-  5. Instalador Inno Setup (FaceScan-Setup-1.0.0.exe)
+  5. Inno Setup installer (FaceScan-Setup-1.0.0.exe)
 
-Uso:
+Usage:
     powershell -ExecutionPolicy Bypass -File packaging\build.ps1
 #>
 $ErrorActionPreference = "Stop"
