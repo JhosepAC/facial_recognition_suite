@@ -1,5 +1,5 @@
 <#
-FaceScan v1.0.0 build pipeline:
+FaceScan v1.1.0 build pipeline:
   1. Tests
   2. Branding resources (ico + wizard) and version_info.txt
   3. Facial model staging (buffalo_l)

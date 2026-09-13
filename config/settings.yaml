@@ -6,7 +6,7 @@ app:
   name: "FaceScan"
   # Version is managed in app/__init__.py (__version__); the YAML value
   # is intentionally ignored to keep a single source of truth.
-  version: "1.0.0"
+  version: "1.1.0"
   theme: "dark"              # dark | light
   language: "es"
 
