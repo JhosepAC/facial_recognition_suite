@@ -1,4 +1,4 @@
-"""Iconos de la interfaz: fuente única (Google Material Icons) para todo el GUI."""
+"""Interface icons: single source (Google Material Icons) for the entire GUI."""
 
 from __future__ import annotations
 
@@ -12,13 +12,13 @@ from PySide6.QtWidgets import QLabel
 _FONT_PATH = Path(__file__).resolve().parent / "assets" / "MaterialIcons-Regular.ttf"
 FONT_FAMILY = "Material Icons"
 
-# Paleta de colores para iconos (alineada al tema oscuro por defecto).
+# Icon color palette (aligned with the default dark theme).
 COLOR_OK = "#2ecc71"
 COLOR_WARN = "#f2b134"
 COLOR_ERROR = "#e85d5d"
 COLOR_MUTED = "#b7b9c4"
 
-# Codepoints de Google Material Icons (fuente MaterialIcons-Regular.ttf).
+# Codepoints for Google Material Icons (MaterialIcons-Regular.ttf).
 GLYPHS = {
     "home": "\ue88a",
     "people": "\ue7ef",
@@ -95,12 +95,28 @@ GLYPHS = {
 
 
 def _glyph(name: str) -> str:
+    """Return the glyph for an icon name, falling back to info.
+
+    Args:
+        name: Icon key in ``GLYPHS``.
+
+    Returns:
+        Unicode glyph character.
+    """
     return GLYPHS.get(name, GLYPHS["info"])
 
 
 def _font(size: int) -> QFont:
-    # addApplicationFont es idempotente dentro de la misma instancia de
-    # QApplication y seguro de repetir entre instancias.
+    """Return the Material Icons font at the given pixel size.
+
+    Args:
+        size: Desired pixel size.
+
+    Returns:
+        Configured ``QFont`` instance.
+    """
+    # addApplicationFont is idempotent within the same QApplication
+    # instance and safe to call repeatedly across instances.
     if _FONT_PATH.exists():
         QFontDatabase.addApplicationFont(str(_FONT_PATH))
     font = QFont(FONT_FAMILY)
@@ -109,6 +125,16 @@ def _font(size: int) -> QFont:
 
 
 def pixmap(name: str, size: int = 20, color: str = COLOR_MUTED) -> QPixmap:
+    """Render an icon glyph to a pixmap.
+
+    Args:
+        name: Icon name.
+        size: Pixmap width/height in pixels.
+        color: CSS color for the glyph.
+
+    Returns:
+        Rendered ``QPixmap``.
+    """
     pm = QPixmap(size, size)
     pm.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pm)
@@ -121,10 +147,30 @@ def pixmap(name: str, size: int = 20, color: str = COLOR_MUTED) -> QPixmap:
 
 
 def icon(name: str, size: int = 20, color: str = COLOR_MUTED) -> QIcon:
+    """Create an icon from a glyph.
+
+    Args:
+        name: Icon name.
+        size: Icon size in pixels.
+        color: Glyph color.
+
+    Returns:
+        ``QIcon`` containing the rendered pixmap.
+    """
     return QIcon(pixmap(name, size, color))
 
 
 def icon_label(name: str, size: int = 20, color: str = COLOR_MUTED) -> QLabel:
+    """Create a label displaying an icon pixmap.
+
+    Args:
+        name: Icon name.
+        size: Icon size in pixels.
+        color: Glyph color.
+
+    Returns:
+        ``QLabel`` with the icon pixmap.
+    """
     label = QLabel()
     label.setPixmap(pixmap(name, size, color))
     label.setFixedSize(size, size)
@@ -132,7 +178,16 @@ def icon_label(name: str, size: int = 20, color: str = COLOR_MUTED) -> QLabel:
 
 
 def html_glyph(name: str, size: int = 14, color: str | None = None) -> str:
-    """Span HTML con el glifo de un icono, para etiquetas de texto (rich text)."""
+    """Return an HTML span with the icon glyph for rich-text labels.
+
+    Args:
+        name: Icon name.
+        size: Font size in pixels.
+        color: Optional CSS color.
+
+    Returns:
+        HTML string with the styled glyph.
+    """
     cp = ord(_glyph(name))
     color_style = f"color:{color};" if color else ""
     return (
@@ -142,18 +197,52 @@ def html_glyph(name: str, size: int = 14, color: str | None = None) -> str:
 
 
 def status_html(icon_name: str, text: str, color: str, size: int = 15) -> str:
-    """Texto de estado con icono integrado (misma fuente de iconos)."""
+    """Return status text with an embedded icon (same icon font).
+
+    Args:
+        icon_name: Icon name.
+        text: Status message.
+        color: Icon color.
+        size: Icon size.
+
+    Returns:
+        HTML string combining icon and escaped text.
+    """
     safe_text = html.escape(str(text))
     return f"{html_glyph(icon_name, size, color)}&nbsp; {safe_text}"
 
 
 def ok(text: str) -> str:
+    """Format a success status message.
+
+    Args:
+        text: Message text.
+
+    Returns:
+        HTML status string with a success icon.
+    """
     return status_html("check_circle", text, COLOR_OK)
 
 
 def warn(text: str) -> str:
+    """Format a warning status message.
+
+    Args:
+        text: Message text.
+
+    Returns:
+        HTML status string with a warning icon.
+    """
     return status_html("warning", text, COLOR_WARN)
 
 
 def err(text: str) -> str:
+    """Format an error status message.
+
+    Args:
+        text: Message text.
+
+    Returns:
+        HTML status string with an error icon.
+    """
     return status_html("error", text, COLOR_ERROR)

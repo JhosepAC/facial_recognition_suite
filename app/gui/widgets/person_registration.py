@@ -1,19 +1,19 @@
 """
-Registro de personas.
+Person registration.
 
-Este módulo es exclusivamente para dar de alta personas: la ficha de datos
-y su dataset de fotografías (que se procesan localmente para extraer el
-vector biométrico). No hay lista de personas aquí — la búsqueda/gestión de
-registros existentes vive en el módulo de Búsqueda.
+This module is exclusively for registering people: the data form
+and photo dataset (processed locally to extract the
+biometric vector). No person list here — search/management of
+existing records lives in the Search module.
 
 Flujo:
-1. El usuario llena la ficha y agrega fotografías (arrastrar-soltar,
-   selector de archivos o captura desde webcam). Las fotos quedan *en
-   espera* (staging) hasta el guardado.
-2. Al pulsar «Guardar», un hilo en segundo plano crea la persona, procesa
-   cada foto (detección + embedding) y reporta el progreso.
-3. Al terminar, el formulario se limpia por completo (campos y dataset)
-   para registrar a la siguiente persona.
+1. The user fills the form and adds photos (drag-and-drop,
+   file picker or webcam capture). Photos remain *staged*
+   until saved.
+2. On "Save", a background thread creates the person, processes
+   each photo (detection + embedding) and reports progress.
+3. On completion, the form is fully cleared (fields and dataset)
+   to register the next person.
 """
 from __future__ import annotations
 
@@ -47,10 +47,10 @@ IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".bmp", ".webp")
 
 
 # --------------------------------------------------------------------------- #
-# Vista previa de una foto a tamaño completo
+# Full-size photo preview
 # --------------------------------------------------------------------------- #
 class PhotoPreviewDialog(QDialog):
-    """Ventana modal para ver una foto del dataset a tamaño completo."""
+    """Modal window to view a dataset photo at full size."""
 
     def __init__(self, photo_path: str, title: str, parent=None,
                  attributes_text: str | None = None):
@@ -89,10 +89,10 @@ class PhotoPreviewDialog(QDialog):
 
 
 # --------------------------------------------------------------------------- #
-# Tarjeta de foto
+# Photo card
 # --------------------------------------------------------------------------- #
 class PhotoCard(QFrame):
-    """Tarjeta de una foto del dataset: miniatura, calidad, principal y acciones."""
+    """Card for a dataset photo: thumbnail, quality, primary flag and actions."""
 
     preview_requested = Signal(int)
     primary_requested = Signal(int)
@@ -182,10 +182,10 @@ class PhotoCard(QFrame):
 
 
 # --------------------------------------------------------------------------- #
-# Rejilla de fotos con drag & drop
+# Photo grid with drag & drop
 # --------------------------------------------------------------------------- #
 class PhotoGridWidget(QWidget):
-    """Rejilla de tarjetas de fotos dentro de un QScrollArea; acepta drag & drop."""
+    """Grid of photo cards inside a QScrollArea; supports drag & drop."""
 
     files_dropped = Signal(list)
     resized = Signal()
@@ -246,7 +246,7 @@ class PhotoGridWidget(QWidget):
 
 
 # --------------------------------------------------------------------------- #
-# Captura de foto desde webcam (diálogo modal)
+# Photo capture from webcam (modal dialog)
 # --------------------------------------------------------------------------- #
 class _CameraThread(QThread):
     frame_ready = Signal(object)  # np.ndarray BGR
@@ -284,7 +284,7 @@ class _CameraThread(QThread):
 
 
 class CapturePhotoDialog(QDialog):
-    """Permite tomar una fotografía desde la webcam para el dataset."""
+    """Allows taking a photo from the webcam for the dataset."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -417,7 +417,7 @@ class CapturePhotoDialog(QDialog):
 
 
 # --------------------------------------------------------------------------- #
-# Guardado en segundo plano (crea la persona + procesa las fotos)
+# Background save (create person + process photos)
 # --------------------------------------------------------------------------- #
 class SavePersonWorker(QThread):
     progress = Signal(int, int)  # foto actual, total
@@ -465,10 +465,10 @@ class SavePersonWorker(QThread):
 
 
 # --------------------------------------------------------------------------- #
-# Widget principal: registro de personas
+# Main widget: person registration
 # --------------------------------------------------------------------------- #
 class PersonManagementWidget(QWidget):
-    """Alta de personas: ficha de datos + dataset de fotografías (staging)."""
+    """Person enrollment: data form + photo dataset (staging)."""
 
     def __init__(self, username: str | None = None, parent=None):
         super().__init__(parent)
@@ -682,7 +682,7 @@ class PersonManagementWidget(QWidget):
         return frame
 
     # ------------------------------------------------------------------ #
-    # Staging de fotografías
+    # Photo staging
     # ------------------------------------------------------------------ #
     def _pick_photos(self) -> None:
         paths, _ = QFileDialog.getOpenFileNames(
@@ -763,7 +763,7 @@ class PersonManagementWidget(QWidget):
 
     @staticmethod
     def _cleanup_temp_file(path: str) -> None:
-        """Elimina archivos temporales (captura webcam); nunca los originales."""
+        """Remove temporary files (webcam capture); never originals."""
         try:
             temp_dir = Path(tempfile.gettempdir()).resolve()
             p = Path(path).resolve()
@@ -773,7 +773,7 @@ class PersonManagementWidget(QWidget):
             pass
 
     # ------------------------------------------------------------------ #
-    # Render de la rejilla de fotos en espera
+    # Render the grid of staged photos
     # ------------------------------------------------------------------ #
     def _update_photo_count(self) -> None:
         self.photo_count_label.setText(
@@ -814,7 +814,7 @@ class PersonManagementWidget(QWidget):
         self._render_photo_cards()
 
     # ------------------------------------------------------------------ #
-    # Limpieza del formulario
+    # Form cleanup
     # ------------------------------------------------------------------ #
     def _clear_form(self) -> None:
         self.nombre_edit.clear()
@@ -856,7 +856,7 @@ class PersonManagementWidget(QWidget):
         self.status_label.setText(tr("persons.form_cleared"))
 
     # ------------------------------------------------------------------ #
-    # Guardado
+    # Save
     # ------------------------------------------------------------------ #
     @staticmethod
     def _mark_invalid(widget: QWidget, invalid: bool) -> None:

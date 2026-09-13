@@ -1,18 +1,17 @@
-"""
-Benchmark y diagnóstico del índice ANN (FAISS) para la búsqueda biométrica 1:N.
+"""Benchmark and diagnostics for the ANN (FAISS) index for 1:N biometric search.
 
-Compara la búsqueda lineal exacta (referencia) contra el índice `IndexIVFFlat`
-con distintos valores de `nprobe`, de modo que el operador pueda calibrar
-`recognition.ann_nprobe` según el recall que necesite, el tamaño de su base y
-su presupuesto de latencia.
+Compares the exact linear search (reference) against ``IndexIVFFlat`` with
+different ``nprobe`` values so the operator can calibrate
+``recognition.ann_nprobe`` for the desired recall, gallery size, and latency.
 
-Uso desde CLI (base en producción):
+CLI usage (production DB):
 
     python -m app.recognition.ann_benchmark
 
-También se invoca desde Administración → Parámetros de reconocimiento a través
-de `run_ann_diagnosis()` (que alimenta el panel de estado).
+Also invoked from Administration -> Recognition Parameters via
+``run_ann_diagnosis()`` (which feeds the status panel).
 """
+
 from __future__ import annotations
 
 import time
@@ -32,7 +31,16 @@ DEFAULT_SAMPLE = 250
 
 
 def _recall_at_k(exact: list, ranked: list, k: int) -> float:
-    """Recall@k: fracción de los top-k exactos recuperados por el índice."""
+    """Compute recall@k: fraction of exact top-k recovered by the index.
+
+    Args:
+        exact: Exact ranked candidates.
+        ranked: ANN ranked candidates.
+        k: Cut-off.
+
+    Returns:
+        Recall value in [0, 1].
+    """
     if not exact or not ranked:
         return 0.0
     exact_ids = {c.embedding_id for c in exact[:k]}
@@ -44,13 +52,20 @@ def _recall_at_k(exact: list, ranked: list, k: int) -> float:
 
 def benchmark_recall(gallery, nprobes=DEFAULT_NPROBES, top_k: int = DEFAULT_TOP_K,
                      sample: int = DEFAULT_SAMPLE, seed: int = 0) -> dict:
-    """Construye el índice IVF una sola vez y mide recall@top_k por cada nprobe.
+    """Build the IVF index once and measure recall@top_k per nprobe.
 
-    ``gallery``: lista de (person_uuid, embedding_id, vector) unitarios.
-    Devuelve un dict con las filas (nprobe, recall, tiempos) y la sugerencia.
+    Args:
+        gallery: List of (person_uuid, embedding_id, vector) unit vectors.
+        nprobes: Nprobe values to evaluate.
+        top_k: Number of top results for recall.
+        sample: Number of random queries to sample.
+        seed: RNG seed.
+
+    Returns:
+        Dict with rows (nprobe, recall, timings) and suggestion.
     """
     if not _faiss_available():
-        logger.warning("faiss no está disponible; benchmark omitido.")
+        logger.warning("faiss not available; benchmark skipped.")
         return {"available": False}
 
     cfg = ann_config()
@@ -103,7 +118,14 @@ def benchmark_recall(gallery, nprobes=DEFAULT_NPROBES, top_k: int = DEFAULT_TOP_
 
 
 def describe_ann_state(session) -> dict:
-    """Estado del índice tal y como lo usaría la búsqueda 1:N en producción."""
+    """Return the index state as used by the production 1:N search.
+
+    Args:
+        session: Active SQLAlchemy session.
+
+    Returns:
+        Dictionary describing ANN state.
+    """
     service = RecognitionService(session)
     gallery = service._load_gallery()
     cfg = ann_config()
@@ -135,7 +157,17 @@ def describe_ann_state(session) -> dict:
 
 def run_ann_diagnosis(session, nprobes=DEFAULT_NPROBES, top_k: int = DEFAULT_TOP_K,
                       sample: int = DEFAULT_SAMPLE) -> dict:
-    """Diagnóstico completo: estado del índice + benchmark de recall si aplica."""
+    """Run a full diagnosis: index state + recall benchmark if applicable.
+
+    Args:
+        session: Active SQLAlchemy session.
+        nprobes: Nprobe values to benchmark.
+        top_k: Top-k for recall.
+        sample: Number of queries.
+
+    Returns:
+        Dictionary with state and optional benchmark.
+    """
     info = describe_ann_state(session)
     if info["mode"] == "ivf":
         service = RecognitionService(session)
@@ -146,56 +178,64 @@ def run_ann_diagnosis(session, nprobes=DEFAULT_NPROBES, top_k: int = DEFAULT_TOP
 
 
 def format_diagnosis_report(info: dict) -> str:
-    """Texto legible (HTML ligero, apto para QLabel y consola) del diagnóstico."""
-    faiss_txt = ("faiss-cpu detectado" if info["available"]
-                 else "faiss-cpu NO está instalado (búsqueda lineal exacta)")
-    lines = [f"<b>Índice ANN</b> · {faiss_txt}"]
-    lines.append(f"Configuración: activo={str(info['enabled']).lower()} · "
-                 f"min {info['min_size']} rostros · IVF desde {info['ivf_min_size']} · "
+    """Format a human-readable (light HTML, suitable for QLabel and console) report.
+
+    Args:
+        info: Diagnosis dictionary.
+
+    Returns:
+        HTML string.
+    """
+    faiss_txt = ("faiss-cpu detected" if info["available"]
+                 else "faiss-cpu NOT installed (exact linear search)")
+    lines = [f"<b>ANN Index</b> · {faiss_txt}"]
+    lines.append(f"Configuration: enabled={str(info['enabled']).lower()} · "
+                 f"min {info['min_size']} faces · IVF from {info['ivf_min_size']} · "
                  f"clusters={info['nlist'] or 'auto'} · probes={info['nprobe'] or 'auto'}")
-    lines.append(f"Galería: {info['n']} embeddings -> modo <b>{info['mode'].upper()}</b>")
+    lines.append(f"Gallery: {info['n']} embeddings -> mode <b>{info['mode'].upper()}</b>")
     if info["mode"] == "ivf":
-        lines.append(f"Índice construido: {info.get('index_built')} · "
-                     f"tiempo {info.get('build_ms', 'n/a')} ms · "
-                     f"tipo {info.get('index_mode', 'n/a')} · "
-                     f"nlist usado {info.get('nlist_used', 'n/a')} · "
-                     f"nprobe usado {info.get('nprobe_used', 'n/a')}")
+        lines.append(f"Index built: {info.get('index_built')} · "
+                     f"time {info.get('build_ms', 'n/a')} ms · "
+                     f"type {info.get('index_mode', 'n/a')} · "
+                     f"nlist used {info.get('nlist_used', 'n/a')} · "
+                     f"nprobe used {info.get('nprobe_used', 'n/a')}")
         bench = info.get("benchmark") or {}
         if bench.get("too_small"):
-            lines.append(f"Benchmark: galería pequeña ({bench['too_small']}); "
-                         "calibrar nprobe no aplica.")
+            lines.append(f"Benchmark: small gallery ({bench['too_small']}); "
+                         "calibrating nprobe not applicable.")
         elif bench.get("rows"):
-            lines.append("<b>Benchmark recall@{} (vs lineal exacta)</b>:".format(
+            lines.append("<b>Benchmark recall@{} (vs exact linear)</b>:".format(
                 bench.get("top_k") or DEFAULT_TOP_K))
             for row in bench["rows"]:
                 lines.append(
                     f"  nprobe={row['nprobe']:<3} recall={row['recall']:.2%} "
-                    f"promedio {row['avg_search_ms']:.2f} ms")
-            lines.append(f"Sugerencia: <b>nprobe={bench.get('suggested')}</b> "
-                         "(recall ≥ 98% o el mejor medido).")
-            lines.append("Puedes fijar ese valor arriba en 'Clusters explorados "
-                         "(0 = automático)'.")
+                    f"average {row['avg_search_ms']:.2f} ms")
+            lines.append(f"Suggestion: <b>nprobe={bench.get('suggested')}</b> "
+                         "(recall >= 98% or best measured).")
+            lines.append("You can set that value above in 'Clusters probed "
+                         "(0 = auto)'.")
         elif bench.get("build_failed"):
-            lines.append("Benchmark: no se pudo construir el índice IVF.")
+            lines.append("Benchmark: could not build IVF index.")
     elif info["mode"] == "flat":
-        lines.append("Modo flat (exacto, vectorizado): no hay recall que calibrar.")
+        lines.append("Flat mode (exact, vectorized): no recall to calibrate.")
     else:
-        lines.append("Índice desactivado o FAISS ausente: las búsquedas usan "
-                     "recorrido lineal exacto.")
+        lines.append("Index disabled or FAISS missing: searches use "
+                     "exact linear scan.")
     return "<br>".join(lines)
 
 
-def main() -> None:  # pragma: no cover - utilidad de consola
+def main() -> None:  # pragma: no cover - console utility
+    """Entry point for CLI execution."""
     import sys
 
     from app.database.session import SessionLocal  # noqa: PLC0415
 
     try:
-        sys.stdout.reconfigure(encoding="utf-8")  # consolas Windows (cp1252)
-    except Exception:  # noqa: BLE001 - opcional
+        sys.stdout.reconfigure(encoding="utf-8")  # Windows consoles (cp1252).
+    except Exception:  # noqa: BLE001 - optional
         pass
 
-    print("Cargando galería biométrica desde la base de datos…")
+    print("Loading biometric gallery from database...")
     with SessionLocal() as session:
         info = run_ann_diagnosis(session)
     print(format_diagnosis_report(info).replace("<br>", "\n")

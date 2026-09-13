@@ -1,7 +1,7 @@
 # Developer Guide — BioVision Suite
 
 How to extend the project without breaking its architecture. Before reading
-this guide you should have read `manual_tecnico.md` (architecture and data
+this guide you should have read `technical_manual.md` (architecture and data
 model).
 
 ---

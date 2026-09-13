@@ -1,18 +1,18 @@
 """
-Vista de estadísticas — rediseñada.
+Statistics view — redesigned.
 
-Organizada en pestañas según el nivel del usuario:
+Organized in tabs by user level:
 
-- **Resumen**: KPIs esenciales + resumen ejecutivo en lenguaje natural +
-  gráficos principales.
-- **Personas**: crecimiento y distribución de la base registrada.
-- **Reconocimiento**: actividad, horarios, personas más reconocidas y
-  calidad de las coincidencias.
-- **Técnico**: datos crudos (tablas) e información del sistema.
+- **Summary**: essential KPIs + executive summary in natural language +
+  main charts.
+- **Persons**: growth and distribution of the enrolled base.
+- **Recognition**: activity, schedules, most recognized persons and
+  match quality.
+- **Technical**: raw data (tables) and system info.
 
-Incluye **actualización en tiempo real**: un temporizador refresca las
-métricas y gráficos automáticamente mientras la aplicación está abierta
-(intervalo configurable y desactivable), además del botón manual.
+Includes **real-time refresh**: a timer updates
+metrics and charts automatically while the app is open
+(configurable and disableable interval), plus a manual button.
 """
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ TABULAR_FORMATS = [
 
 
 def _figure_to_pixmap(fig) -> QPixmap:
-    """Renderiza una figura de matplotlib (backend Agg) a un QPixmap, sin pasar por disco."""
+    """Render a matplotlib figure (Agg backend) to a QPixmap without touching disk."""
     canvas = FigureCanvasAgg(fig)
     canvas.draw()
     w, h = canvas.get_width_height()
@@ -71,7 +71,7 @@ def _wrap_scroll(widget: QWidget) -> QScrollArea:
 
 
 # --------------------------------------------------------------------------- #
-# Tarjeta de métrica (KPI) con icono, valor, etiqueta y subtítulo
+# Metric card (KPI) with icon, value, label and caption
 # --------------------------------------------------------------------------- #
 class MetricCard(QFrame):
     def __init__(self, title: str, value: str = "—", icon_name: str = "info",
@@ -127,7 +127,7 @@ class MetricCard(QFrame):
 
 
 # --------------------------------------------------------------------------- #
-# Tarjeta de gráfico con título y descripción (tooltip)
+# Chart card with title and description (tooltip)
 # --------------------------------------------------------------------------- #
 class ChartCard(QFrame):
     def __init__(self, title: str, description: str = "", parent=None):
@@ -168,7 +168,7 @@ class ChartCard(QFrame):
 
 
 # --------------------------------------------------------------------------- #
-# Widget principal
+# Main widget
 # --------------------------------------------------------------------------- #
 class StatisticsWidget(QWidget):
     _INTERVALS_MS = [5_000, 15_000, 30_000, 60_000, 300_000]
@@ -233,7 +233,7 @@ class StatisticsWidget(QWidget):
             obj.retranslate(tr(title_key), tr(desc_key) if desc_key else "")
 
     # ------------------------------------------------------------------ #
-    # Construcción de la interfaz
+    # UI construction
     # ------------------------------------------------------------------ #
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
@@ -302,7 +302,7 @@ class StatisticsWidget(QWidget):
         return header
 
     # ------------------------------------------------------------------ #
-    # Pestaña Resumen
+    # Summary tab
     # ------------------------------------------------------------------ #
     def _build_resumen_tab(self) -> QWidget:
         w = QWidget()
@@ -366,7 +366,7 @@ class StatisticsWidget(QWidget):
         return w
 
     # ------------------------------------------------------------------ #
-    # Pestaña Personas
+    # Persons tab
     # ------------------------------------------------------------------ #
     def _build_personas_tab(self) -> QWidget:
         w = QWidget()
@@ -429,7 +429,7 @@ class StatisticsWidget(QWidget):
         return w
 
     # ------------------------------------------------------------------ #
-    # Pestaña Reconocimiento
+    # Recognition tab
     # ------------------------------------------------------------------ #
     def _build_reconocimiento_tab(self) -> QWidget:
         w = QWidget()
@@ -482,7 +482,7 @@ class StatisticsWidget(QWidget):
         return w
 
     # ------------------------------------------------------------------ #
-    # Pestaña Técnico
+    # Technical tab
     # ------------------------------------------------------------------ #
     def _build_tecnico_tab(self) -> QWidget:
         w = QWidget()
@@ -532,7 +532,7 @@ class StatisticsWidget(QWidget):
         return w
 
     # ------------------------------------------------------------------ #
-    # Panel de exportación
+    # Export panel
     # ------------------------------------------------------------------ #
     def _build_export_card(self) -> QFrame:
         export_frame = QFrame()
@@ -589,7 +589,7 @@ class StatisticsWidget(QWidget):
         return export_frame
 
     # ------------------------------------------------------------------ #
-    # Utilidades
+    # Utilities
     # ------------------------------------------------------------------ #
     def _selected_days(self) -> int:
         return DAYS_OPTIONS[self.days_combo.currentIndex()][1]
@@ -608,7 +608,7 @@ class StatisticsWidget(QWidget):
         self.refresh(all_tabs=False)
 
     # ------------------------------------------------------------------ #
-    # Refresco (tiempo real)
+    # Refresh (real time)
     # ------------------------------------------------------------------ #
     def refresh(self, all_tabs: bool = True) -> None:
         self._days = self._selected_days()
@@ -801,7 +801,7 @@ class StatisticsWidget(QWidget):
             self.db_info_label.setText(f"Base de datos: {db_path}")
 
     # ------------------------------------------------------------------ #
-    # Exportación
+    # Export
     # ------------------------------------------------------------------ #
     def _export_persons(self) -> None:
         fmt, ext = self._selected_format()

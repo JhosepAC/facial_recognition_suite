@@ -62,26 +62,26 @@ ATTR_COLOR_KEYS = {
 
 
 def _attrs_present_text(attrs: FaceAttributes | None) -> str:
-    """Línea resumen: atributos presentes en un rostro (para vista previa/ficha)."""
+    """Summary line: attributes present in a face (for preview/detail)."""
     if attrs is None:
         return ""
     present = [tr(ATTR_LABEL_KEYS[f]) for f in ATTR_FIELDS if getattr(attrs, f)]
     return tr("attrs.summary").format(", ".join(present)) if present else tr("attrs.none_hint")
 
 # --------------------------------------------------------------------------- #
-# Módulo: Búsqueda inteligente (por texto o por foto)
+# Module: Smart search (by text or photo)
 # --------------------------------------------------------------------------- #
 
 
 def _primary_thumbnail(person) -> str | None:
-    """Ruta de la miniatura de la foto principal de una persona (o de la primera)."""
+    """Path to the thumbnail of a person's primary photo (or first)."""
     if person.photos:
         primary = next((p for p in person.photos if p.es_principal), person.photos[0])
         return primary.thumbnail_path or primary.file_path
     return None
 
 
-# Etiqueta visible de cada campo informativo (lectura) -> clave del dict `datos` en _load_user.
+# Visible label for each info field (read-only) -> key in `datos` dict in _load_user.
 DETAIL_FIELD_KEYS = {
     "Fotos": "fotos",
     "Embeddings": "embeddings",
@@ -91,7 +91,7 @@ DETAIL_FIELD_KEYS = {
 
 
 class PhotoSearchWorker(QThread):
-    """Busca la persona más parecida a una imagen, en segundo plano."""
+    """Search for the most similar person to an image in the background."""
 
     step = Signal(str)
     finished_ok = Signal(object)
@@ -104,19 +104,19 @@ class PhotoSearchWorker(QThread):
 
     def run(self) -> None:  # noqa: D102
         try:
-            self.step.emit("Leyendo imagen de búsqueda...")
+            self.step.emit("Reading search image...")
             image = cv2.imread(self.image_path)
             if image is None:
-                raise ValueError("No se pudo leer la imagen seleccionada.")
+                raise ValueError("Could not read the selected image.")
 
-            self.step.emit("Detectando el rostro más relevante...")
+            self.step.emit("Detecting the most relevant face...")
             face = FaceEngine.instance().largest_face(image)
             if face is None:
                 raise NoFaceDetectedError(
-                    "No se detectó ningún rostro en la imagen. Usa una foto frontal y nítida."
+                    "No face detected in the image. Use a frontal, sharp photo."
                 )
 
-            self.step.emit("Comparando contra la base biométrica (1:N)...")
+            self.step.emit("Comparing against the biometric base (1:N)...")
             with get_session() as session:
                 rec_service = RecognitionService(session)
                 person_service = PersonService(session)
@@ -162,7 +162,7 @@ class PhotoSearchWorker(QThread):
 
 
 class PhotoPickerCard(QFrame):
-    """Tarjeta para seleccionar (clic o arrastre) la fotografía de búsqueda."""
+    """Card to select (click or drag) the search photo."""
 
     image_selected = Signal(str)
 
@@ -182,7 +182,7 @@ class PhotoPickerCard(QFrame):
         self.icon_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(self.icon_label, alignment=Qt.AlignCenter)
 
-        self.label = QLabel("Haz clic o arrastra aquí la fotografía de búsqueda")
+        self.label = QLabel("Click or drag the search photo here")
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setStyleSheet("color: #8f92a3;")
         self.label.setWordWrap(True)
@@ -198,7 +198,7 @@ class PhotoPickerCard(QFrame):
     def clear(self) -> None:
         self.icon_label.show()
         self.label.setPixmap(QPixmap())
-        self.label.setText("Haz clic o arrastra aquí la fotografía de búsqueda")
+        self.label.setText("Click or drag the search photo here")
         self.label.setAlignment(Qt.AlignCenter)
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
@@ -218,7 +218,7 @@ class PhotoPickerCard(QFrame):
 
 
 class PersonSearchWidget(QWidget):
-    """Módulo 'Búsqueda de personas' — por texto o por fotografía, con ficha dedicada."""
+    """Module 'Person search' — by text or photo, with dedicated detail view."""
 
     def __init__(self, username: str | None = None, permisos: set[str] | None = None, parent=None):
         super().__init__(parent)
@@ -353,7 +353,7 @@ class PersonSearchWidget(QWidget):
         root.addWidget(splitter, stretch=1)
 
     # ------------------------------------------------------------------ #
-    # Panel de búsqueda
+    # Search panel
     # ------------------------------------------------------------------ #
     def _build_search_panel(self) -> QFrame:
         frame = QFrame()
@@ -511,7 +511,7 @@ class PersonSearchWidget(QWidget):
         return w
 
     # ------------------------------------------------------------------ #
-    # Panel de detalle (ficha dedicada de la persona)
+    # Detail panel (dedicated person sheet)
     # ------------------------------------------------------------------ #
     def _build_detail_panel(self) -> QFrame:
         frame = QFrame()
@@ -742,7 +742,7 @@ class PersonSearchWidget(QWidget):
         lay.addWidget(self.delete_person_btn)
         lay.addStretch()
 
-        # C1: ocultar acciones de escritura a quienes no tienen el permiso.
+        # C1: hide write actions for users without the required permission.
         if not self._can_edit:
             self.detail_edit_btn.hide()
             self.add_photos_btn.hide()
@@ -761,7 +761,7 @@ class PersonSearchWidget(QWidget):
         return scroll_area
 
     def _connect_detail_signals(self) -> None:
-        """Empata cada campo editable a un guardado automático en tiempo real (600 ms)."""
+        """Bind each editable field to real-time auto-save (600 ms)."""
         self.det_nombre.textChanged.connect(self._on_detail_edited)
         self.det_apellidos.textChanged.connect(self._on_detail_edited)
         self.det_alias.textChanged.connect(self._on_detail_edited)
@@ -788,7 +788,7 @@ class PersonSearchWidget(QWidget):
             self._save_person_details()
 
     # ------------------------------------------------------------------ #
-    # Búsqueda por texto
+    # Text search
     # ------------------------------------------------------------------ #
     def _load_empresas(self) -> None:
         selected = self.empresa_combo.currentData() if hasattr(self, "empresa_combo") else None
@@ -819,7 +819,7 @@ class PersonSearchWidget(QWidget):
         self._search_text()
 
     def _clear_search(self) -> None:
-        """Limpia el buscador de texto, el filtro, la foto y los resultados."""
+        """Clear the text search, filters, photo and results."""
         self._search_timer.stop()
         self.search_edit.blockSignals(True)
         self.search_edit.clear()
@@ -841,7 +841,7 @@ class PersonSearchWidget(QWidget):
         self._reset_detail()
 
     def _reset_detail(self) -> None:
-        """Restaura la ficha de detalle a su estado vacío inicial."""
+        """Restore the detail view to its initial empty state."""
         self._detail_uuid = None
         if self._autosave_timer.isActive():
             self._autosave_timer.stop()
@@ -942,7 +942,7 @@ class PersonSearchWidget(QWidget):
             self._load_person(uuid)
 
     # ------------------------------------------------------------------ #
-    # Búsqueda por fotografía
+    # Photo search
     # ------------------------------------------------------------------ #
     def _on_query_image(self, path: str) -> None:
         if path == "__pick__":
@@ -1024,7 +1024,7 @@ class PersonSearchWidget(QWidget):
             self._photo_worker = None
 
     # ------------------------------------------------------------------ #
-    # Ficha dedicada de la persona
+    # Dedicated person sheet
     # ------------------------------------------------------------------ #
     def _load_person(self, uuid: str) -> None:
         self._populating = True
@@ -1187,7 +1187,7 @@ class PersonSearchWidget(QWidget):
         self._sync_results_row(self._detail_uuid)
 
     def _sync_results_row(self, uuid: str) -> None:
-        """Actualiza la fila de la persona en la tabla de resultados en tiempo real."""
+        """Update the person's row in the results table in real time."""
         for row in range(self.results_table.rowCount()):
             item = self.results_table.item(row, 0)
             if item is None or item.data(Qt.UserRole) != uuid:
@@ -1212,7 +1212,7 @@ class PersonSearchWidget(QWidget):
             break
 
     def _clear_photo_dataset(self) -> None:
-        """Pide confirmación y elimina todas las fotos del dataset de la persona actual."""
+        """Ask for confirmation and delete all photos from the current person's dataset."""
         if not self._detail_uuid or not self._detail_photo_data or not self._can_edit:
             return
         resp = QMessageBox.question(
@@ -1231,7 +1231,7 @@ class PersonSearchWidget(QWidget):
         self.detail_status.setText(icons.ok("Dataset de fotografías limpiado."))
 
     def _delete_person(self) -> None:
-        """Pide confirmación y elimina a la persona junto con su dataset."""
+        """Ask for confirmation and delete the person along with their dataset."""
         if not self._detail_uuid or not self._can_delete:
             return
         nombre = self.detail_name_label.text().strip() or "esta persona"
@@ -1266,7 +1266,7 @@ class PersonSearchWidget(QWidget):
                 96, 96, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation))
 
     # ------------------------------------------------------------------ #
-    # Dataset de fotos en la ficha
+    # Photo dataset in the detail view
     # ------------------------------------------------------------------ #
     def _set_detail_photos(self, photo_data: list[dict]) -> None:
         self._detail_photo_data = list(photo_data)
@@ -1285,7 +1285,7 @@ class PersonSearchWidget(QWidget):
         self._render_detail_photo_cards()
 
     def _update_photo_grid_height(self) -> None:
-        """Limita la altura visible de la rejilla a 3 filas; el resto se scrollea."""
+        """Limit visible grid height to 3 rows; the rest scrolls."""
         if not self._detail_photo_data:
             self.photo_grid.setMaximumHeight(PHOTO_CARD_HEIGHT + 24)
             self.photos_scroll.setFixedHeight(PHOTO_CARD_HEIGHT + 24)
@@ -1436,17 +1436,17 @@ class PersonSearchWidget(QWidget):
 
 
 # --------------------------------------------------------------------------- #
-# Módulo: Comparador biométrico (escáner 1:1)
+# Module: Biometric comparator (1:1 scanner)
 # --------------------------------------------------------------------------- #
 
 STEP_NAMES = [
-    "Cargando imagen A",
-    "Analizando imagen B",
-    "Detectando rostro en imagen A",
-    "Detectando rostro en imagen B",
-    "Extrayendo vectores biométricos",
-    "Calculando similitud coseno",
-    "Generando veredicto",
+    "Loading image A",
+    "Analyzing image B",
+    "Detecting face in image A",
+    "Detecting face in image B",
+    "Extracting biometric vectors",
+    "Computing cosine similarity",
+    "Generating verdict",
 ]
 
 
@@ -1458,7 +1458,7 @@ def _bgr_to_pixmap(bgr: np.ndarray) -> QPixmap:
 
 
 class ScanCanvas(QWidget):
-    """Lienzo de escaneo: imagen + retícula de puntería + línea de barrido + overlay del rostro."""
+    """Scan canvas: image + reticle + sweep line + face overlay."""
 
     def __init__(self, accent: str, parent=None):
         super().__init__(parent)
@@ -1626,7 +1626,7 @@ class ScanCanvas(QWidget):
 
 
 class ScanFrame(QFrame):
-    """Panel con lienzo de escaneo, nombre de archivo y botón de selección."""
+    """Panel with scan canvas, file name and selection button."""
 
     image_dropped = Signal(str)
 
@@ -1689,7 +1689,7 @@ class ScanFrame(QFrame):
 
 
 class SimilarityGauge(QWidget):
-    """Indicador circular animado del porcentaje de coincidencia."""
+    """Animated circular gauge for match percentage."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1780,7 +1780,7 @@ class StepRow(QWidget):
 
 
 class StepList(QWidget):
-    """Lista de pasos del proceso con estados pending / active / done / error."""
+    """Process step list with pending / active / done / error states."""
 
     def __init__(self, steps: list[str], parent=None):
         super().__init__(parent)
@@ -1836,7 +1836,7 @@ class StepList(QWidget):
 
 
 class CompareWorker(QThread):
-    """Ejecuta el análisis 1:1 en segundo plano y reporta cada paso."""
+    """Run 1:1 analysis in the background and report each step."""
 
     step_started = Signal(str)
     step_succeeded = Signal(str, object)
@@ -1851,13 +1851,13 @@ class CompareWorker(QThread):
 
     def run(self) -> None:  # noqa: D102
         steps = [
-            "Cargando imagen A",
-            "Analizando imagen B",
-            "Detectando rostro en imagen A",
-            "Detectando rostro en imagen B",
-            "Extrayendo vectores biométricos",
-            "Calculando similitud coseno",
-            "Generando veredicto",
+            "Loading image A",
+            "Analyzing image B",
+            "Detecting face in image A",
+            "Detecting face in image B",
+            "Extracting biometric vectors",
+            "Computing cosine similarity",
+            "Generating verdict",
         ]
         total = len(steps)
         img_a, img_b = None, None
@@ -1869,40 +1869,40 @@ class CompareWorker(QThread):
                 self.step_started.emit(name)
                 self.progress.emit(int((i / total) * 100))
 
-                if name == "Cargando imagen A":
-                    # Corregido: self.path_a
+                if name == "Loading image A":
+                    # Fixed: self.path_a
                     img_a = FaceEngine.load_image_bgr(self.path_a)
                     if img_a is None:
-                        raise ValueError("No se pudo leer la imagen A. Verifica el archivo.")
+                        raise ValueError("Could not read image A. Check the file.")
                     self.step_succeeded.emit(name, img_a)
 
-                elif name == "Analizando imagen B":
-                    # Corregido: self.path_b
+                elif name == "Analyzing image B":
+                    # Fixed: self.path_b
                     img_b = FaceEngine.load_image_bgr(self.path_b)
                     if img_b is None:
-                        raise ValueError("No se pudo leer la imagen B. Verifica el archivo.")
+                        raise ValueError("Could not read image B. Check the file.")
                     self.step_succeeded.emit(name, img_b)
 
-                elif name == "Detectando rostro en imagen A":
+                elif name == "Detecting face in image A":
                     face_a = FaceEngine.instance().largest_face(img_a)
                     if face_a is None:
                         raise NoFaceDetectedError("No se detectó ningún rostro en la imagen A.")
                     self.step_succeeded.emit(name, face_a)
 
-                elif name == "Detectando rostro en imagen B":
+                elif name == "Detecting face in image B":
                     face_b = FaceEngine.instance().largest_face(img_b)
                     if face_b is None:
                         raise NoFaceDetectedError("No se detectó ningún rostro en la imagen B.")
                     self.step_succeeded.emit(name, face_b)
 
-                elif name == "Extrayendo vectores biométricos":
+                elif name == "Extracting biometric vectors":
                     self.step_succeeded.emit(name, None)
 
-                elif name == "Calculando similitud coseno":
+                elif name == "Computing cosine similarity":
                     result = compare_pair(face_a.embedding, face_b.embedding)
                     self.step_succeeded.emit(name, result)
 
-                elif name == "Generando veredicto":
+                elif name == "Generating verdict":
                     self.progress.emit(100)
                     self.finished_ok.emit({
                         "result": result,
@@ -1916,7 +1916,7 @@ class CompareWorker(QThread):
 
 
 class FaceCompareWidget(QWidget):
-    """Módulo 'Comparador biométrico' — escáner 1:1 con proceso visible."""
+    """Module 'Biometric comparator' — 1:1 scanner with visible workflow."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -1972,7 +1972,7 @@ class FaceCompareWidget(QWidget):
         self._subtitle.setWordWrap(True)
         layout.addWidget(self._subtitle)
 
-        # --- Panel central: A | gauge | B ---
+        # --- Center panel: A | gauge | B ---
         top = QHBoxLayout()
         top.setSpacing(14)
         self.frame_a = ScanFrame("compare.image_a", "#6fa8ff", self._pick_a)
@@ -1984,14 +1984,14 @@ class FaceCompareWidget(QWidget):
         top.addWidget(self.frame_b, stretch=1)
         layout.addLayout(top, stretch=1)
 
-        # --- Panel inferior: pasos + métricas ---
+        # --- Bottom panel: steps + metrics ---
         bottom = QHBoxLayout()
         bottom.setSpacing(14)
         bottom.addWidget(self._build_steps_panel(), stretch=1)
         bottom.addWidget(self._build_metrics_panel(), stretch=0)
         layout.addLayout(bottom)
 
-        # --- Barra de acciones ---
+        # --- Actions bar ---
         actions = QHBoxLayout()
         self.compare_btn = QPushButton(tr("compare.compare"))
         self.compare_btn.setIcon(icons.icon("compare", 16, "#ffffff"))
@@ -2401,7 +2401,7 @@ class FaceCompareWidget(QWidget):
             self._worker = None
 
     # ------------------------------------------------------------------ #
-    # Exportación del reporte de comparación (PNG)
+    # Export comparison report (PNG)
     # ------------------------------------------------------------------ #
     def _export_report(self) -> None:
         if not self._last_result or self._image_a is None or self._image_b is None:
@@ -2517,7 +2517,7 @@ class FaceCompareWidget(QWidget):
             return pm.scaled(diameter, diameter, Qt.KeepAspectRatioByExpanding,
                              Qt.SmoothTransformation)
 
-        # ---- Cabecera -----------------------------------------------------------
+        # ---- Header -----------------------------------------------------------
         p.setPen(Qt.PenStyle.NoPen)
         p.setBrush(ACCENT)
         p.drawRoundedRect(QRectF(MARGIN, 40, 6, 46), 3, 3)
@@ -2533,7 +2533,7 @@ class FaceCompareWidget(QWidget):
         p.drawRoundedRect(bx, 40, bw, bh, bh // 2, bh // 2)
         text(bx, 40, bw, bh, badge, font_cap, color, Qt.AlignmentFlag.AlignCenter)
 
-        # ---- Dos tarjetas de imagen (simétricas) -------------------------------
+        # ---- Two image cards (symmetric) -------------------------------
         card_y = 158
         card_h = 440
         card_w = (W - 2 * MARGIN - GAP) // 2
@@ -2611,7 +2611,7 @@ class FaceCompareWidget(QWidget):
         _draw_image_card(MARGIN + card_w + GAP, self._image_b, "IMAGEN B", self._face_b,
                          fname_b)
 
-        # ---- Tarjetas de métricas ---------------------------------------------
+        # ---- Metric cards ---------------------------------------------
         metrics_y = 628
         metrics_h = 96
         metric_items = [
@@ -2676,7 +2676,7 @@ class FaceCompareWidget(QWidget):
         text(MARGIN, 866, W - 2 * MARGIN, 26, verdict_line, font_verdict, color,
              Qt.AlignmentFlag.AlignCenter)
 
-        # ---- Pie de página ------------------------------------------------------
+        # ---- Footer ------------------------------------------------------
         p.setPen(QPen(QColor("#262830"), 1))
         p.drawLine(QPointF(MARGIN, 902), QPointF(W - MARGIN, 902))
         text(MARGIN, 908, W - 2 * MARGIN, 20,

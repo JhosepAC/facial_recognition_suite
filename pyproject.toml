@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biovision-suite"
-description = "BioVision Suite — Plataforma de análisis biométrico facial (local, offline)"
+description = "BioVision Suite — Local, offline facial biometric analysis platform"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }
@@ -22,31 +22,31 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
-# La versión se lee de app/__init__.py (fuente única), igual que en el resto del código.
+# Version is read from app/__init__.py (single source of truth), consistent with the codebase.
 dynamic = ["version"]
 
 dependencies = [
-    # --- IA / Visión por computadora ---
+    # --- AI / Computer vision ---
     "insightface==1.0.1",
     "onnxruntime==1.18.1",
     "opencv-python==4.10.0.84",
     "mediapipe==0.10.21",
     "numpy==1.26.4",
     "Pillow==10.4.0",
-    # --- Indexación ANN (opcional: sin faiss hay fallback lineal) ---
+    # --- ANN indexing (optional: linear fallback without faiss) ---
     "faiss-cpu==1.15.0",
-    # --- Interfaz gráfica ---
+    # --- Graphical interface ---
     "PySide6==6.7.2",
-    # --- Base de datos ---
+    # --- Database ---
     "SQLAlchemy==2.0.31",
-    # --- Utilidades ---
+    # --- Utilities ---
     "pandas==2.2.2",
     "matplotlib==3.9.4",
     "PyYAML==6.0.1",
     "loguru==0.7.2",
     "bcrypt==4.2.0",
     "cryptography==43.0.0",
-    # --- Exportación ---
+    # --- Export ---
     "openpyxl==3.1.5",
     "reportlab==4.2.2",
 ]

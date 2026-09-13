@@ -1,17 +1,16 @@
-"""
-Punto de entrada de FaceScan.
+"""FaceScan entry point.
 
-Flujo de arranque:
-  1. Inicializa la base de datos.
-  2. Si no existe ningún usuario, muestra el diálogo de configuración inicial
-     (crea la cuenta de administrador).
-  3. Si el usuario guardó su sesión ("Recordar sesión"), ingresa directamente
-     validando el token de sesión; si no, muestra la pantalla de login.
-  4. Abre la ventana principal para ese usuario.
-  5. Si el usuario cierra sesión (en vez de cerrar la aplicación), vuelve a
-     mostrar el login sin auto-login (la sesión fue cerrada explícitamente).
+Startup flow:
+    1. Initialize the database.
+    2. If no users exist, show the initial setup dialog
+       (creates the administrator account).
+    3. If the user saved their session ("Remember session"), enter directly
+       by validating the session token; otherwise show the login screen.
+    4. Open the main window for that user.
+    5. If the user logs out (instead of closing the application), show the
+       login again without auto-login (the session was explicitly closed).
 
-Ejecutar con:
+Run with:
     python -m app.main
 """
 import shutil
@@ -24,12 +23,14 @@ from PySide6.QtWidgets import QApplication, QDialog
 from app.core.config import LOGO_PATH, settings
 from app.core.exceptions import TwoFactorRequiredError
 from app.core.logger import logger
-from app.database.session import get_session, init_db
 from app.database.models import User
+from app.database.session import get_session, init_db
 from app.gui.main_window import MainWindow
 from app.gui.theme import get_stylesheet
 from app.gui.widgets.login_widget import (
-    FirstRunSetupDialog, LoginDialog, RememberedCredentials,
+    FirstRunSetupDialog,
+    LoginDialog,
+    RememberedCredentials,
 )
 from app.i18n import set_language as set_i18n_language, system_language
 from app.services.auth_service import AuthService
@@ -37,16 +38,14 @@ from app.services.preferences_service import PreferencesService
 
 
 def _ensure_models() -> None:
-    """
-    Instala los modelos faciales empaquetados en ~/.insightface.
+    """Install bundled facial models into ``~/.insightface``.
 
-    En modo congelado (PyInstaller), los modelos viajan dentro del bundle
-    y se copian una vez al directorio estándar de InsightFace:
+    In frozen mode (PyInstaller), models are bundled inside the executable
+    and copied once to the standard InsightFace directory:
 
-        %USERPROFILE%\\.insightface\\models\\<modelo>
+        %USERPROFILE%\\.insightface\\models\\<model>
 
-    De esta forma la aplicación puede funcionar sin Internet después de
-    instalarse.
+    This allows the application to work offline after installation.
     """
     try:
         from app.core.config import BUNDLE_DIR
@@ -67,9 +66,9 @@ def _ensure_models() -> None:
         )
 
         # -------------------------------------------------------------
-        # Archivos mínimos esperados del paquete buffalo_l.
+        # Minimum expected files for the buffalo_l package.
         #
-        # No basta con que exista la carpeta.
+        # The folder alone is not sufficient.
         # -------------------------------------------------------------
         expected_models = {
             "1k3d68.onnx",
@@ -85,33 +84,32 @@ def _ensure_models() -> None:
         } if target.exists() else set()
 
         # -------------------------------------------------------------
-        # Ya están todos los modelos instalados.
+        # All models are already installed.
         # -------------------------------------------------------------
         if expected_models.issubset(existing_models):
             logger.info(
-                "Modelos InsightFace ya instalados en {}",
+                "InsightFace models already installed at {}",
                 target,
             )
             return
 
         # -------------------------------------------------------------
-        # No existen en el bundle.
+        # Not present in the bundle.
         #
-        # Esto puede ocurrir durante desarrollo, porque los modelos pueden
-        # haber sido instalados previamente por InsightFace en ~/.insightface.
+        # This can happen during development because models may have been
+        # previously installed by InsightFace in ~/.insightface.
         # -------------------------------------------------------------
         if not source.exists():
             logger.info(
-                "No hay modelos faciales empaquetados en {}. "
-                "Se utilizarán los modelos existentes en {} si están "
-                "instalados.",
+                "No bundled facial models at {}. "
+                "Existing models at {} will be used if installed.",
                 source,
                 target,
             )
             return
 
         # -------------------------------------------------------------
-        # Crear directorio padre.
+        # Create parent directory.
         # -------------------------------------------------------------
         target.parent.mkdir(
             parents=True,
@@ -119,7 +117,7 @@ def _ensure_models() -> None:
         )
 
         # -------------------------------------------------------------
-        # Si hay una instalación parcial, eliminarla antes de copiar.
+        # If there is a partial installation, remove it before copying.
         # -------------------------------------------------------------
         if target.exists():
             shutil.rmtree(target)
@@ -130,31 +128,39 @@ def _ensure_models() -> None:
         )
 
         logger.info(
-            "Modelos faciales empaquetados instalados correctamente en {}",
+            "Bundled facial models installed successfully at {}",
             target,
         )
 
     except Exception:  # noqa: BLE001
         logger.exception(
-            "No se pudieron instalar los modelos faciales empaquetados."
+            "Could not install bundled facial models."
         )
 
+
 def _apply_user_language(user_id: int) -> None:
-    """Activa el idioma persistido del usuario (o el del sistema si no existe)."""
+    """Activate the user's persisted language (or system language as fallback).
+
+    Args:
+        user_id: Identifier of the authenticated user.
+    """
     try:
         with get_session() as session:
             language = PreferencesService(session).get_language(user_id)
         set_i18n_language(language)
     except Exception:  # noqa: BLE001
-        logger.warning("No se pudo cargar la preferencia de idioma; se usará el del sistema.")
+        logger.warning("Could not load language preference; using system language.")
         set_i18n_language(system_language())
 
-def _try_auto_login() -> tuple[int | None, str | None]:
-    """Reanuda la sesión guardada sin pasar por la pantalla de login.
 
-    Devuelve ``(user_id, prefill_username)``. Si el token es válido pero el
-    usuario tiene 2FA, devuelve ``(None, username)``: el token NO se descarta
-    (se conserva para el login normal) y la pantalla se abre precargada.
+def _try_auto_login() -> tuple[int | None, str | None]:
+    """Resume the saved session without showing the login screen.
+
+    Returns:
+        Tuple ``(user_id, prefill_username)``. If the token is valid but the
+        user has 2FA enabled, returns ``(None, username)``: the token is not
+        discarded (it is kept for the regular login) and the screen is opened
+        pre-filled.
     """
     username, token, has_token, autologin = RememberedCredentials().load()
     if not autologin or not username or not has_token or not token:
@@ -165,22 +171,24 @@ def _try_auto_login() -> tuple[int | None, str | None]:
         with get_session() as session:
             user = AuthService(session).authenticate_remembered_token(token)
             if user is not None:
-                user_id = user.id  # <-- Se obtiene la ID mientras la sesión está abierta
+                user_id = user.id  # Retrieve ID while the session is still open
     except TwoFactorRequiredError:
         return None, username
-    except Exception:  # noqa: BLE001 - token inválido o error transitorio
+    except Exception:  # noqa: BLE001 - invalid token or transient error
         user_id = None
 
     if user_id is None:
-        # Token no válido, vencido o de una cuenta desactivada: se descarta y se
-        # muestra el login normal (nunca se saltó la contraseña en texto plano).
+        # Invalid, expired, or deactivated account token: discard it and
+        # show the regular login (plain-text password was never bypassed).
         RememberedCredentials().clear()
         return None, None
 
     return user_id, None
 
+
 def main() -> None:
-    logger.info("Iniciando FaceScan...")
+    """Run the FaceScan application lifecycle."""
+    logger.info("Starting FaceScan...")
     init_db()
     _ensure_models()
 
@@ -218,7 +226,7 @@ def main() -> None:
         app.exec()
 
         if not window.logout_requested:
-            break  # la ventana se cerró normalmente (no por "Cerrar sesión") -> salir
+            break  # Window was closed normally (not via "Log out") -> exit
 
     sys.exit(0)
 

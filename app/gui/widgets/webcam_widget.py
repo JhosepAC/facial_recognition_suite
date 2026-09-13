@@ -1,16 +1,16 @@
 """
-Reconocimiento en vivo con webcam local.
+Live recognition with local webcam.
 
-Diseño con hilos desacoplados para evitar parpadeo/lentitud:
+Design with decoupled threads to avoid flicker/slowness:
 
-- CaptureThread : bucle de captura puro. Solo hace cap.read() y emite el frame
-  a la GUI lo más rápido posible (sin inferencia, sin tocar BD). Publica además
-  el frame más reciente en una cola para el hilo de reconocimiento.
-- RecognitionWorker : consume el frame más reciente de la cola y ejecuta el
-  modelo. Si el modelo es más lento que la cámara, descarta frames antiguos
-  (procesa siempre el último disponible). Abre su propia sesión de BD en su hilo.
-- ModelWarmupThread : precarga los modelos de InsightFace en segundo plano al
-  abrir la página, para que encender la cámara no congele la interfaz.
+- CaptureThread: pure capture loop. Only does cap.read() and emits the frame
+  to the GUI as fast as possible (no inference, no DB). Also publishes
+  the latest frame to a queue for the recognition thread.
+- RecognitionWorker: consumes the latest frame from the queue and runs the
+  model. If the model is slower than the camera, it discards old frames
+  (always processes the latest available). Opens its own DB session in its thread.
+- ModelWarmupThread: preloads InsightFace models in background when
+  opening the page, so turning on the camera does not freeze the UI.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from collections import OrderedDict
 import cv2
 import numpy as np
 
-# Silenciar FutureWarnings ruidosos de insightface/skimage que spammean logs en vivo
+# Silence noisy FutureWarnings from insightface/skimage that spam live logs
 warnings.filterwarnings("ignore", category=FutureWarning, module="insightface.*")
 warnings.filterwarnings("ignore", category=FutureWarning, module="skimage.*")
 
@@ -58,7 +58,7 @@ ATTR_LABEL_KEYS = {
 
 
 # ====================================================================== #
-# Precarga de modelos (no bloquea la cámara al iniciar)
+# Model preload (does not block camera on start)
 # ====================================================================== #
 class ModelWarmupThread(QThread):
     finished_ok = Signal()
@@ -73,7 +73,7 @@ class ModelWarmupThread(QThread):
 
 
 # ====================================================================== #
-# Hilo de captura puro (sin inferencia)
+# Pure capture thread (no inference)
 # ====================================================================== #
 class CaptureThread(QThread):
     frame_ready = Signal(int, np.ndarray)  # seq, frame BGR
@@ -93,12 +93,12 @@ class CaptureThread(QThread):
             cap = cv2.VideoCapture(self.camera_index)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, settings.camera.frame_width)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, settings.camera.frame_height)
-        # Intentar fijar FPS de la cámara para no saturar CPU
+        # Try to set camera FPS to avoid CPU saturation
         try:
             cap.set(cv2.CAP_PROP_FPS, settings.camera.target_fps)
         except Exception:
             pass
-        # Buffer mínimo para reducir latencia (no acumular frames viejos en driver)
+        # Minimal buffer to reduce latency (avoid accumulating old frames in driver)
         try:
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         except Exception:
@@ -106,8 +106,8 @@ class CaptureThread(QThread):
 
         if not cap.isOpened():
             self.error.emit(
-                f"No se pudo abrir la cámara índice {self.camera_index}. "
-                "Verifica que no esté en uso por otra aplicación."
+                f"Could not open camera index {self.camera_index}. "
+                "Check that it is not in use by another application."
             )
             self._running = False
             return
@@ -125,12 +125,12 @@ class CaptureThread(QThread):
                 seq += 1
                 fps_count += 1
 
-                # Ruta rápida: mostrar el frame sin ningún análisis.
-                # Emitir referencia; el receptor debe copiar si necesita retenerlo.
+                # Fast path: show frame without any analysis.
+                # Emit reference; receiver must copy if it needs to retain it.
                 self.frame_ready.emit(seq, frame)
 
-                # Ruta lenta: dejar el frame más reciente para el reconocimiento.
-                # Solo copiar cuando el worker puede consumir, descartando viejos.
+                # Slow path: leave the most recent frame for recognition.
+                # Only copy when the worker can consume, discarding old ones.
                 try:
                     self.pending_frames.put_nowait((seq, frame.copy()))
                 except queue.Full:
@@ -146,8 +146,8 @@ class CaptureThread(QThread):
                         self.fps_updated.emit(fps_count / elapsed)
                     fps_window_start = time.perf_counter()
                     fps_count = 0
-                # Ceder CPU brevemente si la UI va saturada
-                # (evita busy-loop a 100% en una sola core)
+                # Yield CPU briefly if UI is saturated
+                # (avoid 100% busy-loop on a single core)
                 if self.pending_frames.full():
                     self.msleep(1)
         finally:
@@ -160,7 +160,7 @@ class CaptureThread(QThread):
 
 
 # ====================================================================== #
-# Hilo de reconocimiento desacoplado de la captura
+# Recognition thread decoupled from capture
 # ====================================================================== #
 class RecognitionWorker(QThread):
     faces_ready = Signal(int, list)  # seq del frame procesado, list[RecognizedFace]
@@ -218,7 +218,7 @@ class RecognitionWorker(QThread):
                     except queue.Empty:
                         continue
 
-                    # Si hay frames más recientes encolados, saltar al último (no procesar cola vieja)
+                    # If newer frames are queued, jump to the latest (do not process stale queue)
                     try:
                         while not self.pending_frames.empty():
                             seq2, frame2 = self.pending_frames.get_nowait()
@@ -236,14 +236,14 @@ class RecognitionWorker(QThread):
 
                     try:
                         small, scale = self._downscale_for_recognition(frame, self.max_width)
-                        # Desactivar atributos en vivo para ahorrar ~30ms por cara (MediaPipe)
+                        # Disable live attributes to save ~30ms per face (MediaPipe)
                         faces = service.recognize_frame(
                             small, person_lookup=lookup,
                             log_event=True, origen="webcam",
                             usuario=self.usuario, log_only_matches=True,
                             with_attributes=False,
                         )
-                        # Re-escalar bboxes al tamaño original para dibujo
+                        # Rescale bboxes to original size for drawing
                         faces = self._scale_bboxes(faces, scale)
                         self.faces_ready.emit(seq, faces)
                     except Exception as exc:  # noqa: BLE001
@@ -264,10 +264,10 @@ class RecognitionWorker(QThread):
 
 
 # ====================================================================== #
-# Video con proporción fija (no se deforma ni se estira sin límite)
+# Video with fixed aspect ratio (no distortion or unbounded stretch)
 # ====================================================================== #
 class AspectFrameLabel(QLabel):
-    """Etiqueta que mantiene la proporción del video y no crece sin límite."""
+    """Label that keeps video aspect ratio and does not grow unbounded."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -293,7 +293,7 @@ class AspectFrameLabel(QLabel):
 
 
 # ====================================================================== #
-# Widget principal
+# Main widget
 # ====================================================================== #
 class WebcamWidget(QWidget):
     def __init__(self, username: str | None = None, parent=None):
@@ -338,7 +338,7 @@ class WebcamWidget(QWidget):
         self.events_table.setHorizontalHeaderLabels(
             [tr("webcam.event_time"), tr("webcam.event_name"), tr("webcam.event_confidence")])
         self._note.setText(tr("webcam.legal_note"))
-        # Invalidar caches de traducción
+        # Invalidate translation caches
         self._cached_unknown_label = None
         self._cached_attr_labels.clear()
         self._refresh_persons_chips()
@@ -349,7 +349,7 @@ class WebcamWidget(QWidget):
         root.setContentsMargins(24, 24, 24, 24)
         root.setSpacing(16)
 
-        # Cabecera
+        # Header
         header = QHBoxLayout()
         header.addWidget(icons.icon_label("videocam", 22, "#6fa8ff"))
         title_col = QVBoxLayout()
@@ -364,7 +364,7 @@ class WebcamWidget(QWidget):
         header.addStretch()
         root.addLayout(header)
 
-        # Controles
+        # Controls
         controls_card = QFrame()
         controls_card.setObjectName("Card")
         controls_layout = QVBoxLayout(controls_card)
@@ -397,7 +397,7 @@ class WebcamWidget(QWidget):
         controls_layout.addWidget(self.status_label)
         root.addWidget(controls_card)
 
-        # Métricas de sesión
+        # Session metrics
         chips_row = QHBoxLayout()
         chips_row.setSpacing(10)
         self.chip_fps = MetricChip("videocam", "—", tr("webcam.fps"), "#6fa8ff")
@@ -409,7 +409,7 @@ class WebcamWidget(QWidget):
         chips_row.addStretch()
         root.addLayout(chips_row)
 
-        # Splitter: video | panel de sesión
+        # Splitter: video | session panel
         splitter = QSplitter(Qt.Horizontal)
 
         video_frame = QFrame()
@@ -500,7 +500,7 @@ class WebcamWidget(QWidget):
             self.status_label.setText("Modelos de reconocimiento listos.")
 
     # ------------------------------------------------------------------ #
-    # Precarga de modelos
+    # Model preload
     # ------------------------------------------------------------------ #
     def _start_warmup(self) -> None:
         if self._model_ready:
@@ -525,7 +525,7 @@ class WebcamWidget(QWidget):
             )
 
     # ------------------------------------------------------------------ #
-    # Control del stream
+    # Stream control
     # ------------------------------------------------------------------ #
     def _start(self) -> None:
         if self.capture is not None:
@@ -591,7 +591,7 @@ class WebcamWidget(QWidget):
         super().closeEvent(event)
 
     # ------------------------------------------------------------------ #
-    # Métricas de sesión
+    # Session metrics
     # ------------------------------------------------------------------ #
     def _reset_session_metrics(self) -> None:
         self._session_faces = 0
@@ -618,8 +618,8 @@ class WebcamWidget(QWidget):
         self.chip_fps.set_value(f"{fps:.0f}")
 
     def _refresh_persons_chips(self) -> None:
-        # Reutiliza las tarjetas existentes: solo crea las nuevas, actualiza las
-        # demás en su sitio (evita parpadeo y reconstrucciones por frame).
+        # Reuse existing cards: only create new ones, update
+        # the rest in place (avoid flicker and per-frame rebuilds).
         seen: set[str] = set()
         for uuid, entry in self._session_persons.items():
             seen.add(uuid)
@@ -685,7 +685,7 @@ class WebcamWidget(QWidget):
                     self._refresh_attr_notes(face.person_uuid, face.attributes)
                 entry["count"] += 1
                 entry["sum"] += face.confidence_pct
-                # Renueva la fila del log cada pocos segundos, no por frame.
+                # Refresh the log row every few seconds, not per frame.
                 if now_ts - self._last_log_ts.get(face.person_uuid, 0) >= 5:
                     self._last_log_ts[face.person_uuid] = now_ts
                     self._append_event(now, entry["nombre"], face.confidence_pct)
@@ -696,13 +696,13 @@ class WebcamWidget(QWidget):
         self._refresh_persons_chips()
 
     # ------------------------------------------------------------------ #
-    # Dibujo del frame en pantalla
+    # Frame rendering on screen
     # ------------------------------------------------------------------ #
     def _refresh_attr_notes(self, person_uuid: str, live_attrs) -> None:
-        """Compara los atributos vistos en vivo con la ficha y guarda avisos (cacheado)."""
+        """Compare live-seen attributes with the stored profile and cache notices."""
         if not settings.recognition.live_attr_check or live_attrs is None:
             return
-        # Cache 15s por persona para no golpear BD en cada frame
+        # Cache 15s per person to avoid hitting DB every frame
         now = time.monotonic()
         if person_uuid in self._attr_notes_ts and now - self._attr_notes_ts[person_uuid] < 15:
             return
@@ -730,7 +730,7 @@ class WebcamWidget(QWidget):
         if not faces:
             return frame
         display = frame.copy()
-        # Cache tr para no resolver i18n por cada cara por frame
+        # Cache tr to avoid resolving i18n per face per frame
         cached_unknown = getattr(self, "_cached_unknown_label", None)
         if cached_unknown is None:
             cached_unknown = tr("webcam.unknown")
@@ -740,7 +740,7 @@ class WebcamWidget(QWidget):
             self._cached_attr_labels = {}
         for face in faces:
             x1, y1, x2, y2 = [int(v) for v in face.bbox]
-            # Clamp bbox a frame para evitar rects fuera de rango (crash cv2)
+            # Clamp bbox to frame to avoid out-of-range rects (cv2 crash)
             h, w = display.shape[:2]
             x1 = max(0, min(x1, w - 1))
             y1 = max(0, min(y1, h - 1))
@@ -779,8 +779,8 @@ class WebcamWidget(QWidget):
             bar_h = th + 6
             cursor = y1
             fill, fg, label = color, (255, 255, 255), text
-            # [None] es el header (nombre/confianza); extra_lines son chips/atributos.
-            # Evitar unpack de None que provocaba TypeError en cada frame.
+            # [None] is the header (name/confidence); extra_lines are chips/attributes.
+            # Avoid unpacking None that caused TypeError each frame.
             for i, entry in enumerate([None] + extra_lines):
                 if entry is not None:
                     ch_fill, ch_fg, ch_label = entry
@@ -799,7 +799,7 @@ class WebcamWidget(QWidget):
         return display
 
     def _on_frame(self, seq: int, frame: np.ndarray) -> None:
-        # Throttle de renderizado: no más de display_max_fps (evita saturar UI thread)
+        # Rendering throttle: no more than display_max_fps (prevents saturating the UI thread).
         max_fps = getattr(settings.camera, "display_max_fps", 30)
         min_interval = 1.0 / max(1, max_fps)
         now = time.perf_counter()
@@ -808,7 +808,7 @@ class WebcamWidget(QWidget):
             return
         self._last_render_ts = now
 
-        # Dibujar solo si hay caras; si no, evitar copia costosa
+        # Draw only if there are faces; otherwise avoid expensive copy
         if self._last_faces:
             display = self._draw_faces(frame, self._last_faces)
         else:

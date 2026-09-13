@@ -1,4 +1,4 @@
-LICENCIA / LICENSE — FaceScan v1.0.0
+LICENCIA / LICENSE — FaceScan v1.1.0
 
 ES:
 FaceScan es software propietario. El presente instalador le concede una

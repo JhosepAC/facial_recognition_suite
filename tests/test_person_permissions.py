@@ -1,11 +1,9 @@
 """
-C1 — Revalidación de permisos en la capa de servicios (registro de personas).
+C1 — Permission revalidation at the service layer (person registry).
 
-El servicio no puede confiar solo en la interfaz: cualquier operación de
-escritura sobre personas exige el permiso del rol y un actor identificado.
+The service must not rely solely on the UI: any write operation on persons
+requires the role permission and an identified actor.
 """
-from pathlib import Path
-
 import pytest
 
 from app.core.exceptions import AuthorizationError, BioVisionError
@@ -41,7 +39,7 @@ def users_and_roles(session):
 
 
 # ------------------------------------------------------------------ #
-# Operación sin actor identificado
+# Operation without identified actor
 # ------------------------------------------------------------------ #
 def test_write_operation_without_actor_raises(session, users_and_roles):
     with pytest.raises(AuthorizationError):
@@ -49,7 +47,7 @@ def test_write_operation_without_actor_raises(session, users_and_roles):
 
 
 # ------------------------------------------------------------------ #
-# Crear persona
+# Create person
 # ------------------------------------------------------------------ #
 def test_visualizador_cannot_create_person(session, users_and_roles):
     with pytest.raises(AuthorizationError):
@@ -67,7 +65,7 @@ def test_operador_can_create_person(session, users_and_roles):
 
 
 # ------------------------------------------------------------------ #
-# Actualizar persona
+# Update person
 # ------------------------------------------------------------------ #
 def test_visualizador_cannot_update_person(session, users_and_roles):
     svc = PersonService(session)
@@ -86,10 +84,10 @@ def test_operador_can_update_person(session, users_and_roles):
 
 
 # ------------------------------------------------------------------ #
-# Fotos
+# Photos
 # ------------------------------------------------------------------ #
 def test_visualizador_cannot_add_photo(session, users_and_roles):
-    # El chequeo de permiso precede a cualquier acceso al archivo.
+    # Permission check precedes any file access.
     with pytest.raises(AuthorizationError):
         PersonService(session).add_photo_from_path(
             "cualquier-uuid", "no-existe.jpg", usuario="visualizador1"
@@ -107,7 +105,7 @@ def test_visualizador_cannot_delete_photo(session, users_and_roles):
 
 
 # ------------------------------------------------------------------ #
-# Borrado de persona (exige permisos de personas + administración)
+# Delete person (requires persons + administration permissions)
 # ------------------------------------------------------------------ #
 def test_operador_cannot_delete_person(session, users_and_roles):
     svc = PersonService(session)
@@ -127,7 +125,7 @@ def test_admin_can_delete_person(session, users_and_roles):
 
 
 # ------------------------------------------------------------------ #
-# Fase 3 (B8): validación básica de campos
+# Phase 3 (B8): basic field validation
 # ------------------------------------------------------------------ #
 def test_create_person_negative_age_raises(session, users_and_roles):
     svc = PersonService(session)
@@ -151,7 +149,7 @@ def test_update_person_validates_fields(session, users_and_roles):
 
 
 # ------------------------------------------------------------------ #
-# Fase 3 (B4): add_photo_from_path valida el archivo origen
+# Phase 3 (B4): add_photo_from_path validates the source file
 # ------------------------------------------------------------------ #
 def test_add_photo_missing_file_raises(session, users_and_roles):
     svc = PersonService(session)
@@ -162,7 +160,7 @@ def test_add_photo_missing_file_raises(session, users_and_roles):
 
 
 # ------------------------------------------------------------------ #
-# Fase 3 (A3): delete_photo exige que la foto pertenezca a la persona
+# Phase 3 (A3): delete_photo requires the photo to belong to the person
 # ------------------------------------------------------------------ #
 def test_delete_photo_rejects_photo_of_other_person(session, users_and_roles, tmp_path):
     from app.database.models import Photo
@@ -182,17 +180,17 @@ def test_delete_photo_rejects_photo_of_other_person(session, users_and_roles, tm
     session.add(photo)
     session.commit()
 
-    # La foto pertenece a A: borrarla desde B debe rechazarse y no tocar archivos.
+    # Photo belongs to A: deleting it via B must be rejected and leave files untouched.
     assert svc.delete_photo(persona_b.uuid, photo.id, usuario="admin") is False
     assert photo_file.exists() and thumb_file.exists()
 
-    # Borrarla desde A sí procede (y elimina los archivos tras confirmar la BD).
+    # Deleting it via A proceeds (and removes files after DB commit).
     assert svc.delete_photo(persona_a.uuid, photo.id, usuario="admin") is True
     assert not photo_file.exists() and not thumb_file.exists()
 
 
 # ------------------------------------------------------------------ #
-# Fase 3 (A5): borrar una persona limpia eventos y detecciones huérfanos
+# Phase 3 (A5): deleting a person cleans up orphaned events and detections
 # ------------------------------------------------------------------ #
 def test_delete_person_cleans_recognition_events_and_detections(session, users_and_roles):
     from app.database.models import RecognitionEvent, VideoDetection, VideoJob
@@ -215,4 +213,4 @@ def test_delete_person_cleans_recognition_events_and_detections(session, users_a
     session.commit()
     assert session.query(RecognitionEvent).count() == 0
     assert session.query(VideoDetection).count() == 0
-    assert session.query(VideoJob).count() == 1  # el job de video se conserva
+    assert session.query(VideoJob).count() == 1  # video job is preserved

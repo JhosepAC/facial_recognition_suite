@@ -1,9 +1,8 @@
-"""
-Servicio de administración. Cubre del spec:
-  - usuarios, roles, permisos
-  - configuración (valores sensibles cifrados)
-  - respaldo / restauración (restauración; el respaldo ya vive en ExportService)
-  - limpieza de base de datos
+"""Administration service. Covers:
+  - users, roles, permissions
+  - configuration (sensitive encrypted values)
+  - backup / restore (restore; backup lives in ExportService)
+  - database cleanup
 """
 from __future__ import annotations
 
@@ -25,10 +24,10 @@ from app.database.session import engine
 from app.services.auth_service import AuthService, hash_password, validate_password_policy
 
 
-# Tablas imprescindibles de cualquier respaldo válido de FaceScan.
+# Essential tables for any valid FaceScan backup.
 _REQUIRED_TABLES = {"persons", "users", "roles", "face_embeddings"}
 
-# Esquema completo de la aplicación: un respaldo legítimo no debe traer nada más.
+# Full application schema: a legitimate backup must not bring anything else.
 _EXPECTED_TABLES = {
     "persons", "photos", "face_embeddings", "roles", "users",
     "audit_logs", "recognition_events", "video_jobs", "video_detections",
@@ -44,10 +43,17 @@ class AdminService:
         self.secrets = SecureSettingRepository(session)
 
     # ------------------------------------------------------------------ #
-    # Autorización (defensa en profundidad; la GUI ya filtra los módulos)
+    # Authorization (defense in depth; the GUI already filters modules).
     # ------------------------------------------------------------------ #
     def _require_admin(self, usuario_actor: str | None) -> None:
-        """Fuerza que `usuario_actor` tenga el permiso de administración."""
+        """Ensure the acting user has the administration permission.
+
+        Args:
+            usuario_actor: Username of the acting user.
+
+        Raises:
+            AuthorizationError: If the actor is missing or lacks permission.
+        """
         if usuario_actor is None:
             raise AuthorizationError(
                 "Operación de administración sin actor identificado."
@@ -57,7 +63,7 @@ class AdminService:
         AuthService(self.session).require_permission(actor, PERM_ADMIN)
 
     # ------------------------------------------------------------------ #
-    # Arranque inicial: roles por defecto + primer administrador
+    # Initial bootstrap: default roles + first administrator
     # ------------------------------------------------------------------ #
     def seed_default_roles(self) -> None:
         for nombre, permisos in DEFAULT_ROLES.items():
@@ -86,7 +92,7 @@ class AdminService:
         return user
 
     # ------------------------------------------------------------------ #
-    # Gestión de usuarios
+    # User management
     # ------------------------------------------------------------------ #
     def create_user(self, username: str, password: str, role_id: int,
                      nombre_completo: str | None = None, usuario_actor: str | None = None) -> User:
@@ -95,7 +101,7 @@ class AdminService:
             raise BioVisionError(f"Ya existe un usuario con el nombre '{username}'.")
         validate_password_policy(password)
         if self.roles.get(role_id) is None:
-            raise BioVisionError("El rol seleccionado no existe.")
+            raise BioVisionError("Selected role does not exist.")
 
         user = User(
             username=username.strip(),
@@ -149,7 +155,7 @@ class AdminService:
             raise BioVisionError("Usuario no encontrado.")
         nuevo_rol = self.roles.get(role_id)
         if nuevo_rol is None:
-            raise BioVisionError("El rol seleccionado no existe.")
+            raise BioVisionError("Selected role does not exist.")
         if self._is_only_active_admin(user) and nuevo_rol.nombre != "Administrador":
             raise BioVisionError(
                 "No puedes cambiar el rol del último administrador activo del sistema."
@@ -175,10 +181,10 @@ class AdminService:
         return deleted
 
     # ------------------------------------------------------------------ #
-    # 2FA de usuarios
+    # User 2FA
     # ------------------------------------------------------------------ #
     def generate_totp_secret(self, usuario_actor: str | None = None) -> str:
-        """Genera un secreto TOTP nuevo (no persistido)."""
+        """Generate a new TOTP secret (not persisted)."""
         self._require_admin(usuario_actor)
         return AuthService(self.session).generate_totp_secret()
 
@@ -215,7 +221,7 @@ class AdminService:
 
     # ------------------------------------------------------------------ #
     def _is_only_active_admin(self, user: User) -> bool:
-        """True si `user` es un administrador activo y es el único de su tipo."""
+        """Return True if `user` is an active administrator and the only one of its kind."""
         if not user.activo or user.role is None or user.role.nombre != "Administrador":
             return False
         otros_admin_activos = (
@@ -230,7 +236,7 @@ class AdminService:
         return list(self.users.list_all())
 
     # ------------------------------------------------------------------ #
-    # Gestión de roles y permisos
+    # Role and permission management
     # ------------------------------------------------------------------ #
     def create_role(self, nombre: str, permisos: list[str], usuario_actor: str | None = None) -> Role:
         self._require_admin(usuario_actor)
@@ -271,7 +277,7 @@ class AdminService:
         return list(self.roles.list_all())
 
     # ------------------------------------------------------------------ #
-    # Configuración sensible cifrada
+    # Encrypted sensitive configuration
     # ------------------------------------------------------------------ #
     def set_secure_setting(self, key: str, plaintext_value: str, descripcion: str | None = None,
                             usuario_actor: str | None = None) -> None:
@@ -300,7 +306,7 @@ class AdminService:
         return deleted
 
     # ------------------------------------------------------------------ #
-    # Limpieza de base de datos (conserva usuarios/roles/config. segura)
+    # Database cleanup (preserves users/roles/secure config)
     # ------------------------------------------------------------------ #
     def cleanup_database(self, usuario_actor: str | None = None) -> dict:
         self._require_admin(usuario_actor)
@@ -333,29 +339,29 @@ class AdminService:
         }
 
     # ------------------------------------------------------------------ #
-    # Restauración desde un respaldo SQLite (ver ExportService.backup_database)
+    # Restore from an SQLite backup (see ExportService.backup_database)
     # ------------------------------------------------------------------ #
     def restore_database(self, backup_path: str, usuario_actor: str | None = None) -> None:
         """
-        Restaura la base de datos en vivo a partir de un archivo de respaldo.
+        Restore the live database from a backup file.
 
-        Validación del respaldo (M11): debe ser una BD SQLite íntegra
-        (``PRAGMA integrity_check``), contener las tablas esenciales y no
-        traer objetos (triggers/vistas/tablas) que no pertenezcan al esquema
-        de FaceScan.
+        Backup validation (M11): must be an intact SQLite DB
+        (``PRAGMA integrity_check``), contain the essential tables, and not
+        bring objects (triggers/views/tables) that do not belong to the
+        FaceScan schema.
 
-        Antes de sobrescribir el archivo se termina la transacción de la
-        sesión ORM (``rollback``) y se cierra el pool de conexiones
-        (``engine.dispose``) para no bloquear el archivo en vivo, y las
-        conexiones de copia usan ``busy_timeout`` (C2).
+        Before overwriting the file, the ORM session transaction is terminated
+        (``rollback``) and the connection pool is closed (``engine.dispose``)
+        to avoid locking the live file, and copy connections use
+        ``busy_timeout`` (C2).
 
-        La GUI debe cerrar la aplicación tras una restauración exitosa.
+        The GUI must close the application after a successful restore.
         """
         self._require_admin(usuario_actor)
 
         backup_file = Path(backup_path)
         if not backup_file.exists():
-            raise BioVisionError(f"El archivo de respaldo no existe: {backup_path}")
+            raise BioVisionError(f"Backup file does not exist: {backup_path}")
 
         try:
             probe = sqlite3.connect(str(backup_file), timeout=30)
@@ -398,7 +404,7 @@ class AdminService:
                 + ", ".join(extra_tables) + ". Restauración cancelada."
             )
 
-        # C2: liberar la transacción de la sesión ORM y el pool antes de sobrescribir.
+        # C2: release the ORM session transaction and connection pool before overwriting.
         self.session.rollback()
         engine.dispose()
 

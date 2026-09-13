@@ -1,7 +1,7 @@
 """
-Tests de la calibración del análisis facial extendido y de la persistencia de
-edad/género. No dependen de insightface/mediapipe: los modelos solo se tocan
-cuando se pide explícitamente un re-análisis, y allí se sustituyen por dobles.
+Tests for extended facial analysis calibration and for age/gender persistence.
+Does not depend on insightface/mediapipe: models are only touched when a
+re-analysis is explicitly requested, and there they are replaced with doubles.
 """
 import json
 
@@ -48,7 +48,7 @@ def _make_person(session, nombre, apellidos, conf, edad=None, genero=None):
 
 @pytest.fixture()
 def cal_session(session):
-    """Dos personas: Ana con gafas alta confianza, Luis con gafas baja confianza."""
+    """Two persons: Ana with high-confidence glasses, Luis with low-confidence glasses."""
     p0 = _make_person(session, "Ana", "Gomez",
                       {"gafas": 0.95, "barba": 0.1, "sonrisa": 0.8},
                       edad=34, genero="F")
@@ -59,7 +59,7 @@ def cal_session(session):
 
 
 # ------------------------------------------------------------------ #
-# FaceAttributes: roundtrip con edad/género
+# FaceAttributes: roundtrip with age/gender
 # ------------------------------------------------------------------ #
 def test_attrs_roundtrip_preserves_age_gender():
     attrs = FaceAttributes(gafas=True, conf={"gafas": 0.9}, edad=42, genero="F")
@@ -79,7 +79,7 @@ def test_attrs_from_dict_tolerates_bad_age():
 
 
 # ------------------------------------------------------------------ #
-# classify_from_conf (umbrales configurables)
+# classify_from_conf (configurable thresholds)
 # ------------------------------------------------------------------ #
 def test_classify_from_conf_default_threshold():
     out = classify_from_conf({"gafas": 0.5})
@@ -101,7 +101,7 @@ def test_classify_from_conf_empty_conf():
 
 
 # ------------------------------------------------------------------ #
-# CalibrationService: recopilación y agregación
+# CalibrationService: collection and aggregation
 # ------------------------------------------------------------------ #
 def test_collect_entries(cal_session):
     session, _ = cal_session
@@ -151,7 +151,7 @@ def test_apply_thresholds_persists_and_preserves_age_gender(cal_session):
 
 
 # ------------------------------------------------------------------ #
-# Re-análisis de fotos
+# Photo re-analysis
 # ------------------------------------------------------------------ #
 def test_refresh_primary_photo_missing_file_returns_none(cal_session):
     session, _ = cal_session

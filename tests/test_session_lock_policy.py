@@ -1,9 +1,9 @@
 """
-Tests de la política de bloqueo de sesión por inactividad y del tope
-absoluto de duración (Fase 7, T2).
+Tests for the inactivity session lock policy and the absolute duration cap
+(Phase 7, T2).
 
-Cubren las funciones puras extraídas en `app.gui.main_window` que deciden
-cuándo bloquear (inactividad) o expirar (tope máximo) la sesión.
+Covers the pure functions extracted in ``app.gui.main_window`` that decide
+when to lock (inactivity) or expire (maximum duration) the session.
 """
 import os
 
@@ -13,7 +13,7 @@ from app.gui.main_window import _session_expired, _session_should_lock
 
 
 # ------------------------------------------------------------------ #
-# Bloqueo por inactividad (session_timeout_minutes)
+# Inactivity lock (session_timeout_minutes)
 # ------------------------------------------------------------------ #
 def test_inactivity_lock_disabled_when_timeout_zero():
     assert _session_should_lock(0, 1000.0, 10_000.0) is False
@@ -32,12 +32,12 @@ def test_inactivity_lock_after_threshold():
 
 
 def test_inactivity_recent_activity_postpones_lock():
-    # 1 min de actividad hace 29 min => aún dentro de la ventana de 30 min.
+    # 1 min of activity 29 min ago => still inside the 30 min window.
     assert _session_should_lock(30, 100.0, 100.0 + 29 * 60) is False
 
 
 # ------------------------------------------------------------------ #
-# Tope absoluto de sesión (max_session_minutes)
+# Absolute session cap (max_session_minutes)
 # ------------------------------------------------------------------ #
 def test_max_session_disabled_when_zero():
     assert _session_expired(0, 1000.0, 99_000.0) is False
@@ -52,5 +52,5 @@ def test_max_session_expired_at_boundary():
 
 
 def test_max_session_expired_regardless_of_activity():
-    # El tope es absoluto: la actividad reciente no lo extiende.
+    # Cap is absolute: recent activity does not extend it.
     assert _session_expired(60, 100.0, 100.0 + 60 * 60 + 60) is True
