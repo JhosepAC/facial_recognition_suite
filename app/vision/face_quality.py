@@ -1,16 +1,18 @@
-"""
-Puntuaciones de calidad facial para una detección concreta.
+"""Facial quality scores for a specific detection.
 
-Cubre la sección "Análisis facial" del spec: nitidez (desenfoque), iluminación
-y pose (yaw/pitch/roll) a partir de los 5 landmarks devueltos por el detector.
-Gafas/mascarilla/barba/bigote/sonrisa quedan como TODO de Fase 2 (requieren
-un clasificador de atributos entrenado; no se simula esa salida aquí).
+Covers the "Facial Analysis" section of the spec: sharpness (blur),
+illumination, and pose (yaw/pitch/roll) from the 5 landmarks returned by the
+detector.
 
-La calidad global se calcula como una media ponderada de nitidez e
-iluminación multiplicada por un factor de pose (0..1): la pose penaliza de
-forma multiplicativa, no aditiva, de modo que un rostro borroso, oscuro y
-mal encarado jamás alcanza un umbral alto "gratis".
+TODO(Phase 2): Glasses/mask/beard/moustache/smile detection requires a trained
+attribute classifier and is not simulated here.
+
+The overall quality is computed as a weighted average of sharpness and
+illumination multiplied by a pose factor (0..1): pose penalizes multiplicatively
+rather than additively, so a blurry, dark, and poorly oriented face never
+reaches a high threshold for free.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -23,17 +25,28 @@ from app.core.config import settings
 
 @dataclass
 class QualityScores:
-    nitidez: float        # 0-100, mayor = más nítido (varianza del Laplaciano, normalizada)
-    iluminacion: float    # 0-100, 50 = exposición óptima
-    inclinacion_deg: float  # "roll" (rotación en el plano de la imagen)
-    yaw_deg: float          # giro lateral (mirando a los lados)
-    pitch_deg: float        # inclinación vertical (arriba/abajo)
-    pose_factor: float      # 0..1, multiplicador de pose aplicado a la calidad
-    size_ok: bool           # True si el bbox supera el tamaño mínimo utilizable
-    calidad_global: float   # 0-100, combinación ponderada * factor de pose
+    """Quality metrics for a detected face."""
+
+    nitidez: float  # 0-100, higher is sharper (normalized Laplacian variance).
+    iluminacion: float  # 0-100, 50 is optimal exposure.
+    inclinacion_deg: float  # Roll (in-plane rotation).
+    yaw_deg: float  # Lateral turn (looking sideways).
+    pitch_deg: float  # Vertical tilt (up/down).
+    pose_factor: float  # 0..1, pose multiplier applied to quality.
+    size_ok: bool  # True if the bbox exceeds the minimum usable size.
+    calidad_global: float  # 0-100, weighted combination * pose factor.
 
 
 def _crop_bbox(image_bgr: np.ndarray, bbox: tuple[float, float, float, float]) -> np.ndarray:
+    """Crop the image to the bounding box, clamped to image bounds.
+
+    Args:
+        image_bgr: Source image in BGR format.
+        bbox: Bounding box as (x1, y1, x2, y2).
+
+    Returns:
+        Cropped image region.
+    """
     h, w = image_bgr.shape[:2]
     x1, y1, x2, y2 = [int(max(0, v)) for v in bbox]
     x2, y2 = min(w, x2), min(h, y2)
@@ -41,11 +54,17 @@ def _crop_bbox(image_bgr: np.ndarray, bbox: tuple[float, float, float, float]) -
 
 
 def compute_pose_angles(landmarks: np.ndarray) -> tuple[float, float, float]:
-    """Estima (yaw, pitch, roll) en grados con los 5 landmarks de InsightFace.
+    """Estimate (yaw, pitch, roll) in degrees from the 5 InsightFace landmarks.
 
-    InsightFace no entrega orientación de cabeza; esta es una aproximación
-    geométrica con la asimetría de la nariz respecto de la línea de ojos y la
-    boca (suficiente para un gate de calidad, no para tracking preciso).
+    InsightFace does not provide head orientation; this is a geometric
+    approximation using nose asymmetry relative to the eye line and mouth
+    (sufficient for a quality gate, not for precise tracking).
+
+    Args:
+        landmarks: Array of 5 landmark points.
+
+    Returns:
+        Tuple of (yaw, pitch, roll) in degrees.
     """
     left_eye, right_eye, nose = landmarks[0], landmarks[1], landmarks[2]
     left_mouth, right_mouth = landmarks[3], landmarks[4]
@@ -62,10 +81,18 @@ def compute_pose_angles(landmarks: np.ndarray) -> tuple[float, float, float]:
 
 
 def align_face(image_bgr: np.ndarray, landmarks: np.ndarray, size: int = 96) -> np.ndarray:
-    """Recorte facial normalizado: centrado y alineado por la línea de ojos.
+    """Return a normalized face crop centered and eye-line aligned.
 
-    Produce una plantilla uniforme (rotación/traslación normalizadas) para que
-    nitidez e iluminación se midan siempre sobre la misma región del rostro.
+    Produces a uniform template (rotation/translation normalized) so that
+    sharpness and illumination are always measured over the same facial region.
+
+    Args:
+        image_bgr: Source image in BGR format.
+        landmarks: Array of 5 landmark points.
+        size: Output square size in pixels.
+
+    Returns:
+        Aligned face image of shape (size, size, 3).
     """
     src = np.asarray(landmarks[:5], dtype=np.float32)
     dst = np.float32([
@@ -88,30 +115,55 @@ def align_face(image_bgr: np.ndarray, landmarks: np.ndarray, size: int = 96) -> 
 
 
 def compute_sharpness(face_crop_bgr: np.ndarray) -> float:
+    """Compute sharpness score via Laplacian variance.
+
+    Args:
+        face_crop_bgr: Cropped face image in BGR format.
+
+    Returns:
+        Sharpness score in [0, 100].
+    """
     if face_crop_bgr.size == 0:
         return 0.0
     gray = cv2.cvtColor(face_crop_bgr, cv2.COLOR_BGR2GRAY)
     variance = cv2.Laplacian(gray, cv2.CV_64F).var()
-    # Normalización empírica: ~1200 de varianza ya se considera muy nítido
+    # Empirical normalization: ~1200 variance is considered very sharp.
     return float(np.clip(variance / 1200.0 * 100.0, 0, 100))
 
 
 def compute_illumination(face_crop_bgr: np.ndarray, enhance: bool = True) -> float:
+    """Compute illumination score from mean brightness.
+
+    Args:
+        face_crop_bgr: Cropped face image in BGR format.
+        enhance: Whether to apply CLAHE before measuring exposure.
+
+    Returns:
+        Illumination score in [0, 100].
+    """
     if face_crop_bgr.size == 0:
         return 0.0
     gray = cv2.cvtColor(face_crop_bgr, cv2.COLOR_BGR2GRAY)
     if enhance:
-        # CLAHE corrige contraluz y sombras antes de medir la exposición,
-        # para no penalizar rostros válidos en escenas de alto contraste.
+        # CLAHE corrects backlight and shadows before measuring exposure
+        # to avoid penalizing valid faces in high-contrast scenes.
         gray = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(gray)
     mean_brightness = float(np.mean(gray))  # 0-255
-    # Puntuación máxima cerca de 130/255 (exposición media), penaliza extremos
+    # Peak score near 130/255 (average exposure), penalizes extremes.
     score = 100.0 - (abs(mean_brightness - 130.0) / 130.0) * 100.0
     return float(np.clip(score, 0, 100))
 
 
 def _pose_factor(yaw: float, pitch: float) -> float:
-    """Factor multiplicativo (0..1): tolerancias de ángulo antes de penalizar."""
+    """Compute multiplicative pose factor (0..1) with angle tolerances.
+
+    Args:
+        yaw: Yaw angle in degrees.
+        pitch: Pitch angle in degrees.
+
+    Returns:
+        Multiplicative factor in [0, 1].
+    """
     max_yaw = settings.vision.max_yaw_deg
     max_pitch = settings.vision.max_pitch_deg
     yaw_pen = max(0.0, abs(yaw) - max_yaw) / max(1.0, max_yaw)
@@ -123,6 +175,17 @@ def evaluate(
     image_bgr: np.ndarray, bbox: tuple[float, float, float, float],
     landmarks: np.ndarray, min_face_size: int | None = None,
 ) -> QualityScores:
+    """Evaluate facial quality for a detection.
+
+    Args:
+        image_bgr: Source image in BGR format.
+        bbox: Face bounding box as (x1, y1, x2, y2).
+        landmarks: Array of 5 landmark points.
+        min_face_size: Minimum face size in pixels. Defaults to settings.
+
+    Returns:
+        QualityScores with all metrics populated.
+    """
     if min_face_size is None:
         min_face_size = settings.vision.min_face_size
 

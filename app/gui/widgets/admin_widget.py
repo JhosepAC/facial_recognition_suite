@@ -1,12 +1,12 @@
 """
-Módulo de Administración (bounded context: ADMIN).
+Administration module (bounded context: ADMIN).
 
-Rediseñado para:
-  - mejorar visualmente cada pestaña (tarjetas, iconos, búsquedas, estados)
-  - reforzar la lógica: protección anti-lockout (último admin), validaciones,
-    confirmaciones para acciones destructivas, consistencia permisos/roles
-  - conectar con AUTH: los roles que se gestionan aquí determinan qué módulos
-    del dashboard quedan visibles (bloqueo de módulos).
+Redesigned to:
+  - visually improve each tab (cards, icons, searches, states)
+  - strengthen logic: anti-lockout protection (last admin), validations,
+    confirmations for destructive actions, permission/role consistency
+  - connect to AUTH: roles managed here determine which modules
+    remain visible in the dashboard (module locking).
 """
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ def _confirm_action(parent: QWidget, title: str, message: str) -> bool:
 
 
 # ====================================================================== #
-# Diálogo: cambiar mi contraseña (requiere la contraseña actual)
+# Dialog: change my password (requires current password)
 # ====================================================================== #
 class ChangePasswordDialog(QDialog):
     def __init__(self, user_id: int, parent=None):
@@ -137,14 +137,14 @@ class ChangePasswordDialog(QDialog):
 
 
 # ====================================================================== #
-# Pestaña: Usuarios
+# Tab: Users
 # ====================================================================== #
 class TotpSetupDialog(QDialog):
-    """Configura/desactiva la verificación en dos pasos (TOTP) de un usuario.
+    """Configure/disable two-factor authentication (TOTP) for a user.
 
-    Flujo: si el usuario aún no tiene 2FA, se genera un secreto, se muestra su
-    URI otpauth y se pide el código actual de la app autenticadora para
-    confirmar el emparejamiento. Si ya tiene 2FA, permite desactivarlo.
+    Flow: if the user has no 2FA, a secret is generated, its
+    otpauth URI is shown and the current code from the authenticator app is
+    requested to confirm pairing. If already has 2FA, allows disabling it.
     """
 
     def __init__(self, user_id: int, username: str, actor_username: str, parent=None):
@@ -277,7 +277,7 @@ class TotpSetupDialog(QDialog):
 
 
 # ====================================================================== #
-# Pestaña: Usuarios
+# Tab: Users
 # ====================================================================== #
 class UsersTab(QWidget):
     def __init__(self, current_username: str, current_user_id: int, parent=None):
@@ -293,7 +293,7 @@ class UsersTab(QWidget):
         root = QVBoxLayout(self)
         root.setSpacing(12)
 
-        # -- Cabecera: búsqueda y actualización -------------------------
+        # -- Header: search and refresh -------------------------
         header = QHBoxLayout()
         header.addWidget(QLabel("Usuarios del sistema"))
         header.addStretch()
@@ -310,7 +310,7 @@ class UsersTab(QWidget):
         header.addWidget(refresh_btn)
         root.addLayout(header)
 
-        # -- Tabla -------------------------------------------------------
+        # -- Table -------------------------------------------------------
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(["Usuario", "Nombre completo", "Rol", "Estado", "Último login"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -320,7 +320,7 @@ class UsersTab(QWidget):
         self.table.itemSelectionChanged.connect(self._on_selection_changed)
         root.addWidget(self.table, stretch=1)
 
-        # -- Barra de acciones sobre el seleccionado --------------------
+        # -- Actions bar sobre el seleccionado --------------------
         actions = QGroupBox("Acciones sobre el usuario seleccionado")
         grid = QGridLayout(actions)
         grid.setSpacing(8)
@@ -370,7 +370,7 @@ class UsersTab(QWidget):
         grid.addWidget(self.totp_btn, 4, 0, 1, 3)
         root.addWidget(actions)
 
-        # -- Columna inferior: crear usuario ----------------------------
+        # -- Bottom column: create user ----------------------------
         create_box = QGroupBox("Crear nuevo usuario")
         form = QFormLayout(create_box)
         form.setSpacing(8)
@@ -567,7 +567,7 @@ class UsersTab(QWidget):
             return
         if not _confirm_action(
             self, "Confirmar eliminación",
-            f"¿Eliminar al usuario '{username}'? Esta acción no se puede deshacer.",
+            f"¿Eliminar al usuario '{username}'? This action cannot be undone.",
         ):
             return
         try:
@@ -596,7 +596,7 @@ class UsersTab(QWidget):
 
 
 # ====================================================================== #
-# Pestaña: Roles y permisos (definen el bloqueo de módulos por usuario)
+# Tab: Roles and permissions (define per-user module locking)
 # ====================================================================== #
 class RolesTab(QWidget):
     def __init__(self, current_username: str, parent=None):
@@ -797,7 +797,7 @@ class RolesTab(QWidget):
                 svc = AdminService(session)
                 role = svc.roles.get(self._selected_role_id)
                 if role is None:
-                    raise BioVisionError("El rol seleccionado ya no existe.")
+                    raise BioVisionError("Selected role no longer exists.")
                 if role.nombre != nombre:
                     if svc.roles.get_by_name(nombre) is not None:
                         raise BioVisionError(f"Ya existe un rol llamado '{nombre}'.")
@@ -845,7 +845,7 @@ class RolesTab(QWidget):
 
 
 # ====================================================================== #
-# Pestaña: Respaldo, restauración y limpieza
+# Tab: Backup, restore and cleanup
 # ====================================================================== #
 class BackupTab(QWidget):
     def __init__(self, current_username: str, parent=None):
@@ -854,8 +854,8 @@ class BackupTab(QWidget):
         self._build_ui()
 
     def refresh(self) -> None:
-        # No hay estado derivado de la BD en esta pestaña; refrescar es un no-op
-        # (se mantiene la compatibilidad con refresh_all del módulo de Admin).
+        # No derived DB state in this tab; refresh is a no-op
+        # (kept for compatibility with Admin module refresh_all).
         pass
 
     def _build_ui(self) -> None:
@@ -869,7 +869,7 @@ class BackupTab(QWidget):
 
     def _card_info(self) -> QHBoxLayout:
         row = QHBoxLayout()
-        row.addWidget(QLabel("Respaldo, restauración y limpieza"))
+        row.addWidget(QLabel("Backup, restauración y limpieza"))
         row.addStretch()
         self.last_backup_label = QLabel("Sin respaldos registrados en esta sesión.")
         self.last_backup_label.setStyleSheet("color: #8f92a3; font-size: 11px;")
@@ -877,11 +877,11 @@ class BackupTab(QWidget):
         return row
 
     def _backup_card(self) -> QGroupBox:
-        box = QGroupBox("Respaldo")
+        box = QGroupBox("Backup")
         layout = QVBoxLayout(box)
         layout.setSpacing(8)
-        desc = QLabel("Genera una copia consistente de toda la base de datos (personas, "
-                      "embeddings, eventos, videos, usuarios y roles).")
+        desc = QLabel("Generate a consistent copy of the entire database (persons, "
+                      "embeddings, events, videos, users and roles).")
         desc.setWordWrap(True)
         layout.addWidget(desc)
         backup_btn = QPushButton("Generar respaldo (.db)")
@@ -891,13 +891,13 @@ class BackupTab(QWidget):
         return box
 
     def _restore_card(self) -> QGroupBox:
-        box = QGroupBox("Restauración")
+        box = QGroupBox("Restore")
         layout = QVBoxLayout(box)
         layout.setSpacing(8)
         warning = QLabel(
             icons.warn(
-                "Restaurar reemplaza POR COMPLETO la base de datos actual. "
-                "La aplicación se cerrará después de restaurar; deberás abrirla de nuevo."
+                "Restoring COMPLETELY replaces the current database. "
+                "The app will close after restoring; you must reopen it."
             )
         )
         warning.setWordWrap(True)
@@ -910,14 +910,14 @@ class BackupTab(QWidget):
         return box
 
     def _cleanup_card(self) -> QGroupBox:
-        box = QGroupBox("Limpieza de base de datos")
+        box = QGroupBox("Database cleanup")
         layout = QVBoxLayout(box)
         layout.setSpacing(8)
         danger = QLabel(
             icons.err(
-                "Elimina TODAS las personas, fotos, embeddings, eventos de reconocimiento y "
-                "trabajos de video. Los usuarios, roles y configuración segura NO se eliminan. "
-                "Esta acción no se puede deshacer."
+                "Delete ALL persons, photos, embeddings, recognition events and "
+                "video jobs. Users, roles and secure settings are NOT deleted. "
+                "This action cannot be undone."
             )
         )
         danger.setWordWrap(True)
@@ -949,7 +949,7 @@ class BackupTab(QWidget):
             self.last_backup_label.setText(
                 f"Último respaldo: {path} ({size_kb:,.0f} KB) · {datetime.now():%H:%M:%S}"
             )
-            QMessageBox.information(self, "Respaldo generado",
+            QMessageBox.information(self, "Backup generado",
                                     f"La copia se guardó en:\n{path}")
         except Exception as exc:  # noqa: BLE001
             logger.exception("Error generando respaldo")
@@ -970,7 +970,7 @@ class BackupTab(QWidget):
             with get_session() as session:
                 AdminService(session).restore_database(path, usuario_actor=self.current_username)
             QMessageBox.information(
-                self, "Restauración completa",
+                self, "Restore completa",
                 "La base de datos fue restaurada. La aplicación se cerrará ahora; ábrela de nuevo "
                 "para continuar con los datos restaurados.",
             )
@@ -1002,7 +1002,7 @@ class BackupTab(QWidget):
 
 
 # ====================================================================== #
-# Pestaña: Configuración segura
+# Tab: Secure settings
 # ====================================================================== #
 class SecureConfigTab(QWidget):
     def __init__(self, current_username: str, parent=None):
@@ -1136,7 +1136,7 @@ class SecureConfigTab(QWidget):
 
 
 # ====================================================================== #
-# Pestaña: Calibración del análisis facial extendido
+# Tab: Extended facial analysis calibration
 # ====================================================================== #
 ATTR_LABEL_KEYS = {
     "gafas": "attrs.glasses",
@@ -1149,7 +1149,7 @@ ATTR_LABEL_KEYS = {
 
 
 class CalibrationRefreshWorker(QThread):
-    """Reanaliza las fotos principales en segundo plano (modelos CPU pesados)."""
+    """Re-analyze primary photos in background (heavy CPU models)."""
     progress = Signal(int, int)
     completed = Signal(int)
 
@@ -1168,13 +1168,13 @@ class CalibrationRefreshWorker(QThread):
 
 
 class CalibrationTab(QWidget):
-    """Diagnóstico del análisis facial: desliza umbrales y observa el efecto.
+    """Facial analysis diagnostics: slide thresholds and see the effect.
 
-    La muestra son las confianzas crudas ya almacenadas (foto principal de
-    cada persona). Cambiar un umbral re-clasifica en memoria y permite ver al
-    instante cuántas personas "cambian"; aplicar el cambio persiste los nuevos
-    booleanos en los embeddings. También puede re-ejecutar los modelos sobre
-    las fotos para regenerar confianzas de registros antiguos.
+    The sample is the raw confidences already stored (primary photo of
+    each person). Changing a threshold re-classifies in memory and shows
+    instantly how many persons "change"; applying persists the new
+    booleans in the embeddings. It can also re-run models on
+    photos to regenerate confidences for older records.
     """
 
     def __init__(self, current_username: str, parent=None):
@@ -1372,10 +1372,10 @@ class CalibrationTab(QWidget):
 
 
 # ====================================================================== #
-# Pestaña: Configuración de reconocimiento (gate de calidad y umbral)
+# Tab: Recognition settings (quality gate and threshold)
 # ====================================================================== #
 class _AnnDiagnoseWorker(QThread):
-    """Construye el índice ANN y ejecuta el benchmark de recall en segundo plano."""
+    """Build the ANN index and run the recall benchmark in background."""
 
     finished_ok = Signal(str)
     failed = Signal(str)
@@ -1388,17 +1388,17 @@ class _AnnDiagnoseWorker(QThread):
             with get_session() as session:
                 report = format_diagnosis_report(run_ann_diagnosis(session))
             self.finished_ok.emit(report)
-        except Exception as exc:  # noqa: BLE001 - solo se reporta al usuario
+        except Exception as exc:  # noqa: BLE001 - reported to the user only
             self.failed.emit(str(exc))
 
 
 class RecognitionConfigTab(QWidget):
     """
-    Permite ajustar, en caliente y de forma persistente (settings.yaml),
-    los parámetros del gate de calidad y el umbral de coincidencia.
+    Allow hot, persistent tuning (settings.yaml) of
+    quality gate and match threshold parameters.
 
-    Los cambios afectan de inmediato a registro, comparación 1:1, búsqueda
-    1:N, webcam y video (todos leen `settings` en tiempo de ejecución).
+    Changes immediately affect enrollment, 1:1 comparison,
+    1:N search, webcam and video (all read `settings` at runtime).
     """
 
     _FIELDS = [
@@ -1571,7 +1571,7 @@ class RecognitionConfigTab(QWidget):
         self._update_ann_status()
 
     def _update_ann_status(self) -> None:
-        """Resumen pasivo de la configuración ANN (el estado vivo se ve al diagnosticar)."""
+        """Passive summary of ANN config (live state seen on diagnose)."""
         rec = settings.recognition
         faiss_ok = False
         try:
@@ -1611,8 +1611,8 @@ class RecognitionConfigTab(QWidget):
         self.ann_status.setText(f"<b>{tr('recognition.ann_status_title')}</b><br/>{message}")
 class PreferencesTab(QWidget):
     """
-    Preferencias de interfaz del usuario conectado. Por ahora el idioma
-    (Español/English), aplicado en vivo por toda la aplicación.
+    Interface preferences for the logged-in user. Currently language
+    (Spanish/English), applied live across the app.
     """
 
     def __init__(self, current_username: str, current_user_id: int, parent=None):
@@ -1693,7 +1693,7 @@ class AuditTab(QWidget):
         layout.setSpacing(8)
 
         toolbar = QHBoxLayout()
-        toolbar.addWidget(QLabel("Registro de auditoría (logs/audit.log)"))
+        toolbar.addWidget(QLabel("Audit log (logs/audit.log)"))
 
         self.filter_edit = QLineEdit()
         self.filter_edit.setPlaceholderText("Filtrar por usuario o acción…")
@@ -1747,16 +1747,16 @@ class AuditTab(QWidget):
         if log_path.exists():
             lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
 
-        # Eventos de auditoría persistidos en BD (login, 2FA, etc.).
+        # Audit events persisted in DB (login, 2FA, etc.).
         try:
             with get_session() as session:
                 db_events = session.query(AuditLog).order_by(AuditLog.id.desc()).all()
-                # Acceder atributos dentro de la sesión para evitar DetachedInstanceError
+                # Access attributes inside the session to avoid DetachedInstanceError
                 for ev in db_events:
                     fecha = ev.fecha.strftime("%Y-%m-%d %H:%M:%S") if ev.fecha else ""
                     detalle = f" | {ev.detalle}" if ev.detalle else ""
                     lines.append(f"{fecha} | AUDIT | {ev.accion} | {ev.usuario or 'systema'}{detalle}")
-        except Exception:  # noqa: BLE001 - pestaña de auditoría nunca debe romper el widget
+        except Exception:  # noqa: BLE001 - audit tab must never break the widget
             logger.exception("Error leyendo auditoría de la base de datos")
 
         texto = self.filter_edit.text().strip().lower()
@@ -1777,7 +1777,7 @@ class AuditTab(QWidget):
 
 
 # ====================================================================== #
-# Widget principal de Administración
+# Main Administration widget
 # ====================================================================== #
 class AdministrationWidget(QWidget):
     _TAB_TITLES = [

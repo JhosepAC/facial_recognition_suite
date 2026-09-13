@@ -1,7 +1,6 @@
-"""
-Capa de servicio: orquesta PersonRepository + RecognitionService + almacenamiento
-de archivos. La GUI solo debe hablar con esta clase, nunca con los repositorios
-o el motor de visión directamente (separación estricta GUI <-> lógica).
+"""Service layer: orchestrates PersonRepository + RecognitionService + file storage.
+The GUI should only talk to this class, never directly to repositories or the
+vision engine (strict GUI <-> logic separation).
 """
 from __future__ import annotations
 
@@ -32,10 +31,10 @@ THUMBNAIL_SIZE = (256, 256)
 
 def _matches_attribute_filter(attrs_obj, required_present: list[str],
                               required_absent: list[str]) -> bool:
-    """True si un análisis facial cumple los criterios de atributos pedidos.
+    """Return True if facial analysis meets the required attribute criteria.
 
-    Sin análisis facial registrado, la persona nunca supera el filtro
-    (no hay evidencia para confirmar presencia/ausencia).
+    Without registered facial analysis, the person never passes the filter
+    (no evidence to confirm presence/absence).
     """
     if attrs_obj is None:
         return False
@@ -46,7 +45,7 @@ def _matches_attribute_filter(attrs_obj, required_present: list[str],
 
 def _matches_color_filter(attrs_obj, color_ojos: str | None,
                           color_pelo: str | None) -> bool:
-    """True si el análisis facial coincide con los colores pedidos (si los hay)."""
+    """Return True if facial analysis matches the requested colors (if any)."""
     if attrs_obj is None:
         return color_ojos is None and color_pelo is None
     if color_ojos and getattr(attrs_obj, "color_ojos", None) != color_ojos:
@@ -57,13 +56,13 @@ def _matches_color_filter(attrs_obj, color_ojos: str | None,
 
 
 def _require_permissions(session: Session, usuario: str | None, *permissions: str) -> None:
-    """Exige que el usuario autenticado tenga TODOS los permisos indicados.
+    """Require the authenticated user to have ALL specified permissions.
 
-    Todas las operaciones de escritura sobre el registro de personas requieren
-    un actor identificado; un ``usuario`` nulo se rechaza siempre.
+    All write operations on the person registry require
+    an identified actor; a null ``usuario`` is always rejected.
     """
     if usuario is None:
-        raise AuthorizationError("Operación denegada: falta el usuario autenticado.")
+        raise AuthorizationError("Operation denied: missing authenticated user.")
     auth = AuthService(session)
     actor = auth.repo.get_by_username(usuario)
     for perm in permissions:
@@ -71,11 +70,11 @@ def _require_permissions(session: Session, usuario: str | None, *permissions: st
 
 
 def _validate_person_fields(*, edad_aproximada: int | None, correo: str | None) -> None:
-    """Validación básica de datos personales antes de crear/actualizar."""
+    """Basic validation of personal data before create/update."""
     if edad_aproximada is not None and edad_aproximada < 0:
-        raise ValueError("La edad aproximada no puede ser negativa.")
+        raise ValueError("Approximate age cannot be negative.")
     if correo and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", correo):
-        raise ValueError("El correo no tiene un formato válido.")
+        raise ValueError("Email has an invalid format.")
 
 
 class PersonService:
@@ -123,12 +122,12 @@ class PersonService:
                       telefono: str | None = None, correo: str | None = None,
                       observaciones: str | None = None,
                       usuario: str | None = None) -> Person:
-        """Actualiza los datos de una persona existente (sin duplicarla)."""
+        """Update an existing person's data (without duplicating)."""
         _require_permissions(self.session, usuario, PERM_PERSONAS)
         _validate_person_fields(edad_aproximada=edad_aproximada, correo=correo)
         person = self.repo.get(person_uuid)
         if person is None:
-            raise ValueError(f"Persona no encontrada: {person_uuid}")
+            raise ValueError(f"Person not found: {person_uuid}")
 
         person.nombre = nombre.strip()
         person.apellidos = apellidos.strip()
@@ -149,21 +148,33 @@ class PersonService:
     # ------------------------------------------------------------------ #
     def add_photo_from_path(self, person_uuid: str, source_path: str,
                              set_as_primary: bool = False, usuario: str | None = None) -> Photo:
-        """
-        Copia la imagen al almacenamiento interno, genera miniatura y extrae embedding.
+        """Copy the image to internal storage, generate a thumbnail and extract embedding.
 
-        Es transaccional: si la foto no produce un embedding válido, se elimina
-        (filas y archivos) y se propaga el error, de modo que solo se persisten
-        fotos realmente aprovechables para el reconocimiento.
+        Transactional: if the photo does not produce a valid embedding, it is
+        removed (rows and files) and the error is propagated, so only
+        photos usable for recognition are persisted.
+
+        Args:
+            person_uuid: Identifier of the person.
+            source_path: Source image path.
+            set_as_primary: Whether to mark the photo as primary.
+            usuario: Acting username.
+
+        Returns:
+            The created Photo record.
+
+        Raises:
+            BioVisionError: If the image file is invalid.
+            ValueError: If the person does not exist or image cannot be read.
         """
         _require_permissions(self.session, usuario, PERM_PERSONAS)
         person = self.repo.get(person_uuid)
         if person is None:
-            raise ValueError(f"Persona no encontrada: {person_uuid}")
+            raise ValueError(f"Person not found: {person_uuid}")
 
         src = Path(source_path)
         if not src.is_file():
-            raise BioVisionError(f"El archivo de imagen no existe: {source_path}")
+            raise BioVisionError(f"Image file does not exist: {source_path}")
         ext = src.suffix.lower() or ".jpg"
         nombre_slug = slugify(f"{person.nombre} {person.apellidos}", default=person_uuid[:8])
         fecha = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -194,7 +205,7 @@ class PersonService:
         try:
             image_bgr = cv2.imread(str(dest_path))
             if image_bgr is None:
-                raise ValueError(f"No se pudo leer la imagen: {dest_path}")
+                raise ValueError(f"Could not read image: {dest_path}")
             embedding = self.recognition.enroll_photo(
                 person_uuid, image_bgr, photo_id=photo.id, usuario=usuario
             )
@@ -223,7 +234,14 @@ class PersonService:
         return self.repo.get(person_uuid)
 
     def list_photos(self, person_uuid: str) -> list[Photo]:
-        """Fotos de la persona, ordenadas: principal primero y luego por fecha."""
+        """Return the person's photos ordered with primary first, then by creation date.
+
+        Args:
+            person_uuid: Person identifier.
+
+        Returns:
+            List of Photo records.
+        """
         person = self.repo.get(person_uuid)
         if person is None:
             return []
@@ -234,10 +252,10 @@ class PersonService:
         _require_permissions(self.session, usuario, PERM_PERSONAS)
         person = self.repo.get(person_uuid)
         if person is None:
-            raise ValueError(f"Persona no encontrada: {person_uuid}")
+            raise ValueError(f"Person not found: {person_uuid}")
         target = next((p for p in person.photos if p.id == photo_id), None)
         if target is None:
-            raise ValueError(f"Foto no encontrada: {photo_id}")
+            raise ValueError(f"Photo not found: {photo_id}")
         for p in person.photos:
             p.es_principal = (p.id == photo_id)
         self.session.flush()
@@ -247,17 +265,17 @@ class PersonService:
 
     def delete_photo(self, person_uuid: str, photo_id: int,
                      usuario: str | None = None) -> bool:
-        """Elimina una foto de la persona: fila, embeddings y archivos físicos.
+        """Delete a person's photo: row, embeddings, and physical files.
 
-        Valida que la foto pertenezca a la persona indicada (integridad en la
-        capa de servicio). El borrado es transaccional: primero se eliminan las
-        filas (y se confirma) y solo después los archivos, de modo que un fallo
-        de la BD nunca deja las fotos huérfanas en disco ni viceversa.
+        Validates that the photo belongs to the indicated person (integrity at
+        the service layer). Deletion is transactional: rows are deleted first
+        (and committed) and only then files, so a DB failure never leaves
+        orphan photos on disk or vice versa.
         """
         _require_permissions(self.session, usuario, PERM_PERSONAS)
         person = self.repo.get(person_uuid)
         if person is None:
-            raise ValueError(f"Persona no encontrada: {person_uuid}")
+            raise ValueError(f"Person not found: {person_uuid}")
         target = next((p for p in person.photos if p.id == photo_id), None)
         if target is None:
             return False
@@ -280,7 +298,7 @@ class PersonService:
             try:
                 Path(path_str).unlink(missing_ok=True)
             except OSError as exc:
-                logger.warning("No se pudo eliminar el archivo '{}': {}", path_str, exc)
+                logger.warning("Could not delete file '{}': {}", path_str, exc)
 
         audit_logger.info("Foto eliminada | persona={} | photo_id={} | usuario={}",
                           person_uuid, photo_id, usuario or "sistema")
@@ -292,11 +310,11 @@ class PersonService:
                excl_attrs: list[str] | None = None,
                color_ojos: str | None = None,
                color_pelo: str | None = None) -> list[Person]:
-        """Búsqueda por texto/empresa, con filtros de análisis facial y color.
+        """Search by text/company, with facial analysis and color filters.
 
-        ``attrs``: campos que DEBEN estar presentes (p. ej. ["gafas"]).
-        ``excl_attrs``: campos que DEBEN estar ausentes (p. ej. ["barba"]).
-        ``color_ojos``/``color_pelo``: etiqueta discreta (None = sin filtro).
+        ``attrs``: fields that MUST be present (e.g., ["gafas"]).
+        ``excl_attrs``: fields that MUST be absent (e.g., ["barba"]).
+        ``color_ojos``/``color_pelo``: discrete label (None means no filter).
         """
         persons = list(self.repo.search_text(query, empresa=empresa))
         if attrs or excl_attrs or color_ojos or color_pelo:
@@ -319,13 +337,13 @@ class PersonService:
         return self.repo.count()
 
     def delete(self, person_uuid: str, usuario: str | None = None) -> bool:
-        # Borrado destructivo e irreversible: exige, además, acceso de administración.
+        # Destructive and irreversible deletion: also requires admin access.
         _require_permissions(self.session, usuario, PERM_PERSONAS, PERM_ADMIN)
         person = self.repo.get(person_uuid)
         if person is None:
             return False
 
-        # 1) Recopilar rutas físicas ANTES de borrar filas (cascade vacía colecciones).
+        # 1) Collect physical paths BEFORE deleting rows (cascade empties collections).
         files_to_delete = []
         for photo in person.photos:
             for path_str in (photo.file_path, photo.thumbnail_path):
@@ -340,22 +358,22 @@ class PersonService:
             d.evidencia_path for d in detections if d.evidencia_path
         )
 
-        # 2) Limpieza explícita de datos huérfanos (FKs OFF en SQLite): eventos de
-        #    reconocimiento y detecciones de video que referencian a la persona.
+        # 2) Explicit cleanup of orphaned data (FKs OFF in SQLite): events
+        #    and video detections referencing the person.
         self.session.query(RecognitionEvent).filter_by(person_uuid=person_uuid).delete()
         self.session.query(VideoDetection).filter_by(person_uuid=person_uuid).delete()
 
-        # 3) Borrar la persona (cascade: fotos y embeddings) y confirmar ANTES de
-        #    tocar el disco: si la BD falla, los archivos permanecen intactos.
+        # 3) Delete the person (cascade: photos and embeddings) and commit BEFORE
+        #    touching disk: if the DB fails, files remain intact.
         deleted = self.repo.delete(person_uuid)
         self.session.commit()
 
-        # 4) Archivos físicos después del commit (fallos de borrado solo se registran).
+        # 4) Physical files after commit (deletion failures are only logged).
         for path_str in files_to_delete:
             try:
                 Path(path_str).unlink(missing_ok=True)
             except OSError as exc:
-                logger.warning("No se pudo eliminar el archivo '{}': {}", path_str, exc)
+                logger.warning("Could not delete file '{}': {}", path_str, exc)
 
         audit_logger.info(
             "Persona eliminada | uuid={} | detecciones_video={} | usuario={}",

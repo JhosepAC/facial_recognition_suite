@@ -1,18 +1,17 @@
-"""
-Motor de visión facial: detección + landmarks + embedding biométrico.
+"""Facial vision engine: detection + landmarks + biometric embedding.
 
-Implementación:
+Implementation:
     InsightFace + buffalo_l + ONNX Runtime.
 
-En desarrollo:
-    Los modelos se buscan en ~/.insightface/models/buffalo_l.
+In development:
+    Models are looked up in ~/.insightface/models/buffalo_l.
 
-En la aplicación empaquetada con PyInstaller:
-    Los modelos se buscan dentro de:
+In the packaged PyInstaller application:
+    Models are looked up inside:
         <bundle>/_internal/models/buffalo_l
 
-Esto permite distribuir FaceScan completamente offline, sin depender
-de que InsightFace descargue buffalo_l en el equipo del usuario.
+This allows distributing FaceScan fully offline without relying on InsightFace
+downloading buffalo_l on the end-user machine.
 """
 
 from __future__ import annotations
@@ -32,6 +31,8 @@ from app.core.logger import logger
 
 @dataclass
 class FaceResult:
+    """Result for a single detected face."""
+
     bbox: tuple[float, float, float, float]
     det_score: float
     landmarks: np.ndarray
@@ -41,22 +42,20 @@ class FaceResult:
 
 
 class FaceEngine:
-    """
-    Envoltura sobre insightface.app.FaceAnalysis.
+    """Wrapper around insightface.app.FaceAnalysis.
 
-    Características:
-
-    - Singleton.
-    - Carga lazy.
-    - Thread-safe.
-    - Detecta automáticamente si se está ejecutando desde PyInstaller.
-    - Usa los modelos incluidos en el bundle cuando está empaquetado.
-    - Usa ~/.insightface/models cuando se ejecuta desde Python.
+    Features:
+        - Singleton.
+        - Lazy loading.
+        - Thread-safe.
+        - Automatically detects PyInstaller execution.
+        - Uses bundled models when packaged.
+        - Uses ~/.insightface/models when running from Python.
     """
 
     _instance: "FaceEngine | None" = None
 
-    # Nombres de los archivos que obligatoriamente debe contener buffalo_l.
+    # Filenames that buffalo_l must contain.
     REQUIRED_MODEL_FILES = (
         "1k3d68.onnx",
         "2d106det.onnx",
@@ -66,6 +65,7 @@ class FaceEngine:
     )
 
     def __init__(self):
+        """Initialize the engine (model is loaded lazily)."""
         self._app = None
         self._lock = threading.RLock()
 
@@ -75,47 +75,62 @@ class FaceEngine:
 
     @classmethod
     def instance(cls) -> "FaceEngine":
+        """Return the singleton instance.
+
+        Returns:
+            Shared FaceEngine instance.
+        """
         if cls._instance is None:
             cls._instance = FaceEngine()
         return cls._instance
 
     # ------------------------------------------------------------------
-    # ESTADO
+    # STATE
     # ------------------------------------------------------------------
 
     @property
     def is_loaded(self) -> bool:
+        """Whether the underlying FaceAnalysis model is loaded."""
         return self._app is not None
 
     # ------------------------------------------------------------------
-    # LECTURA SEGURA DE IMÁGENES (NUEVO)
+    # SAFE IMAGE LOADING
     # ------------------------------------------------------------------
 
     @staticmethod
     def load_image_bgr(image_input: str | Path | np.ndarray | None) -> np.ndarray:
-        """
-        Carga o valida una imagen BGR de forma segura en Windows,
-        soportando rutas con espacios, tildes y caracteres Unicode.
+        """Load or validate a BGR image safely on Windows.
+
+        Supports paths with spaces, accents, and Unicode characters.
+
+        Args:
+            image_input: File path or in-memory BGR image.
+
+        Returns:
+            BGR image as a numpy array.
+
+        Raises:
+            ValueError: If the input is None, empty, or cannot be decoded.
+            FileNotFoundError: If the file does not exist.
         """
         if image_input is None:
-            raise ValueError("No se proporcionó ninguna imagen o la ruta es nula (None).")
-
+            raise ValueError("No image provided or path is None.")
         if isinstance(image_input, np.ndarray):
             if image_input.size == 0 or len(image_input.shape) < 2:
-                raise ValueError("La imagen en memoria proporcionada está vacía o es inválida.")
+                raise ValueError("Provided in-memory image is empty or invalid.")
             return image_input
 
         path_obj = Path(image_input)
         if not path_obj.exists():
-            raise FileNotFoundError(f"No se encontró el archivo de imagen: {image_input}")
+            raise FileNotFoundError(f"Image file not found: {image_input}")
 
-        # Leer archivo como bytes independientes del sistema de archivos de Windows
+        # Read file as bytes independent of the Windows filesystem handling.
         img_bytes = np.fromfile(str(path_obj), dtype=np.uint8)
         img = cv2.imdecode(img_bytes, cv2.IMREAD_COLOR)
 
         if img is None:
             raise ValueError(
-                f"No se pudo decodificar la imagen (formato no soportado o archivo corrupto): {image_input}"
+                f"Could not decode image (unsupported format or corrupted file): {image_input}"
             )
 
         return img
@@ -126,9 +141,10 @@ class FaceEngine:
 
     @staticmethod
     def _is_frozen() -> bool:
-        """
-        Devuelve True cuando la aplicación está ejecutándose desde
-        un bundle generado por PyInstaller.
+        """Return True when running from a PyInstaller bundle.
+
+        Returns:
+            True if frozen, False otherwise.
         """
         return bool(
             getattr(sys, "frozen", False)
@@ -137,19 +153,21 @@ class FaceEngine:
 
     @classmethod
     def _bundle_root(cls) -> Path | None:
-        """
-        Obtiene la raíz interna del bundle PyInstaller.
+        """Get the internal root of the PyInstaller bundle.
 
-        En PyInstaller 6.x para onedir normalmente será:
+        In PyInstaller 6.x for onedir it is typically:
 
             FaceScan/
                 FaceScan.exe
                 _internal/
                     ...
 
-        y sys._MEIPASS apunta a:
+        and sys._MEIPASS points to:
 
             FaceScan/_internal
+
+        Returns:
+            Bundle root path or None if not frozen.
         """
         if not cls._is_frozen():
             return None
@@ -158,39 +176,40 @@ class FaceEngine:
 
     @classmethod
     def _model_root(cls) -> Path:
-        """
-        Devuelve el directorio raíz que InsightFace debe utilizar.
+        """Return the root directory InsightFace should use.
 
-        Desarrollo:
+        Development:
             ~/.insightface
 
         PyInstaller:
             <bundle>/_internal
-        """
 
+        Returns:
+            Root path for InsightFace models.
+        """
         bundle_root = cls._bundle_root()
 
         if bundle_root is not None:
             root = bundle_root
 
             logger.info(
-                "FaceScan ejecutándose como aplicación empaquetada."
+                "FaceScan running as packaged application."
             )
             logger.info(
-                "Directorio interno de PyInstaller: {}",
+                "PyInstaller internal directory: {}",
                 root,
             )
 
             return root
 
-        # Ejecución normal desde Python.
+        # Normal execution from Python.
         root = Path.home() / ".insightface"
 
         logger.info(
-            "FaceScan ejecutándose desde Python."
+            "FaceScan running from Python."
         )
         logger.info(
-            "Directorio raíz de InsightFace: {}",
+            "InsightFace root directory: {}",
             root,
         )
 
@@ -198,24 +217,29 @@ class FaceEngine:
 
     @classmethod
     def _model_dir(cls) -> Path:
-        """
-        Directorio exacto donde InsightFace debe encontrar buffalo_l.
-        """
+        """Return the exact directory where InsightFace should find buffalo_l.
 
+        Returns:
+            Model directory path.
+        """
         return cls._model_root() / "models" / settings.vision.detector_model
 
     @classmethod
     def _validate_models(cls, model_dir: Path) -> None:
-        """
-        Verifica que todos los ONNX necesarios existan.
+        """Verify that all required ONNX files exist.
 
-        Esto evita que InsightFace intente descargar modelos
-        silenciosamente cuando la aplicación está empaquetada.
-        """
+        Prevents InsightFace from silently attempting to download models when
+        the application is packaged.
 
+        Args:
+            model_dir: Directory expected to contain buffalo_l.
+
+        Raises:
+            ModelLoadError: If the directory or required files are missing.
+        """
         if not model_dir.exists():
             raise ModelLoadError(
-                f"No existe el directorio de modelos de InsightFace:\n"
+                f"InsightFace model directory does not exist:\n"
                 f"{model_dir}"
             )
 
@@ -227,9 +251,9 @@ class FaceEngine:
 
         if missing:
             raise ModelLoadError(
-                "Faltan modelos de InsightFace.\n"
-                f"Directorio: {model_dir}\n"
-                f"Faltantes: {', '.join(missing)}"
+                "Missing InsightFace models.\n"
+                f"Directory: {model_dir}\n"
+                f"Missing: {', '.join(missing)}"
             )
 
         found = sorted(
@@ -238,7 +262,7 @@ class FaceEngine:
         )
 
         logger.info(
-            "Modelos InsightFace encontrados en {}: {}",
+            "InsightFace models found in {}: {}",
             model_dir,
             ", ".join(found),
         )
@@ -249,16 +273,17 @@ class FaceEngine:
 
     @staticmethod
     def _available_providers() -> list[str]:
-        """
-        Selecciona los providers disponibles de ONNX Runtime.
+        """Select available ONNX Runtime providers.
 
-        Preferencia:
+        Preference:
             1. CUDA
             2. CPU
 
-        Si CUDA no está instalado, se utiliza CPU automáticamente.
-        """
+        Falls back to CPU if CUDA is not installed.
 
+        Returns:
+            List of provider names to use.
+        """
         try:
             import onnxruntime
 
@@ -267,14 +292,14 @@ class FaceEngine:
             )
 
             logger.info(
-                "Proveedores ONNX Runtime disponibles: {}",
+                "ONNX Runtime available providers: {}",
                 ", ".join(sorted(available)),
             )
 
         except Exception as exc:  # noqa: BLE001
             logger.warning(
-                "No se pudo consultar ONNX Runtime: {}. "
-                "Se utilizará CPU.",
+                "Could not query ONNX Runtime: {}. "
+                "Falling back to CPU.",
                 exc,
             )
 
@@ -295,32 +320,29 @@ class FaceEngine:
             providers = ["CPUExecutionProvider"]
 
         logger.info(
-            "Proveedores seleccionados para InsightFace: {}",
+            "Selected providers for InsightFace: {}",
             ", ".join(providers),
         )
 
         return providers
 
     # ------------------------------------------------------------------
-    # CARGA DEL MODELO
+    # MODEL LOADING
     # ------------------------------------------------------------------
 
     def warmup(self) -> None:
-        """
-        Carga los modelos de forma síncrona.
+        """Load models synchronously.
 
-        Útil para realizar una precarga desde un hilo de inicialización.
+        Useful for preloading from an initialization thread.
         """
         self._ensure_loaded()
 
     def _ensure_loaded(self) -> None:
-        """
-        Carga FaceAnalysis una sola vez.
+        """Load FaceAnalysis once.
 
-        Utiliza doble comprobación para evitar que dos hilos
-        carguen simultáneamente los modelos.
+        Uses double-checked locking to prevent two threads from loading
+        models simultaneously.
         """
-
         if self._app is not None:
             return
 
@@ -336,17 +358,17 @@ class FaceEngine:
                 model_dir = self._model_dir()
 
                 logger.info(
-                    "Cargando modelos de reconocimiento facial ({})...",
+                    "Loading facial recognition models ({})...",
                     model_name,
                 )
 
                 logger.info(
-                    "Directorio raíz de InsightFace: {}",
+                    "InsightFace root directory: {}",
                     self._model_root(),
                 )
 
                 logger.info(
-                    "Directorio del modelo: {}",
+                    "Model directory: {}",
                     model_dir,
                 )
 
@@ -356,11 +378,11 @@ class FaceEngine:
                 ctx_id = settings.vision.ctx_id
 
                 logger.info(
-                    "Inicializando FaceAnalysis con root={}",
+                    "Initializing FaceAnalysis with root={}",
                     self._model_root(),
                 )
 
-                # Intentar cargar con los proveedores preferidos (ej. CUDA / CPU)
+                # Try loading with preferred providers (e.g., CUDA / CPU).
                 try:
                     self._app = FaceAnalysis(
                         name=model_name,
@@ -375,10 +397,10 @@ class FaceEngine:
                         det_size=det_size,
                     )
                 except Exception as provider_exc:
-                    # Fallback a CPU en caso de que falle la inicialización por GPU/CUDA
+                    # Fallback to CPU if GPU/CUDA initialization fails.
                     logger.warning(
-                        "Fallo al inicializar InsightFace con providers={}/ctx_id={}: {}. "
-                        "Reintentando con CPUExecutionProvider...",
+                        "Failed to initialize InsightFace with providers={}/ctx_id={}: {}. "
+                        "Retrying with CPUExecutionProvider...",
                         providers, ctx_id, provider_exc
                     )
                     self._app = FaceAnalysis(
@@ -393,7 +415,7 @@ class FaceEngine:
                     )
 
                 logger.info(
-                    "Modelos de reconocimiento facial cargados correctamente."
+                    "Facial recognition models loaded successfully."
                 )
 
             except ModelLoadError:
@@ -402,32 +424,35 @@ class FaceEngine:
             except Exception as exc:  # noqa: BLE001
 
                 logger.exception(
-                    "Error cargando InsightFace."
+                    "Error loading InsightFace."
                 )
 
                 raise ModelLoadError(
-                    "No se pudieron cargar los modelos de InsightFace.\n\n"
-                    f"Modelo: {settings.vision.detector_model}\n"
-                    f"Directorio: {self._model_dir()}\n\n"
-                    f"Detalle técnico: {exc}\n\n"
-                    "Verifica que el paquete Microsoft Visual C++ Redistributable (x64) esté instalado en el sistema."
+                    "Could not load InsightFace models.\n\n"
+                    f"Model: {settings.vision.detector_model}\n"
+                    f"Directory: {self._model_dir()}\n\n"
+                    f"Technical detail: {exc}\n\n"
+                    "Verify that Microsoft Visual C++ Redistributable (x64) is installed."
                 ) from exc
 
     # ------------------------------------------------------------------
-    # EDAD
+    # AGE
     # ------------------------------------------------------------------
 
     @staticmethod
     def _resolve_age(raw_age) -> int | None:
-        """
-        Convierte la edad estimada por InsightFace a un rango
-        más conservador.
+        """Map InsightFace raw age estimate to a more conservative range.
 
-        Nota:
-            La edad estimada por el modelo no debe interpretarse
-            como una medición exacta.
-        """
+        Note:
+            The model age estimate should not be treated as an exact
+            measurement.
 
+        Args:
+            raw_age: Raw age value from the model.
+
+        Returns:
+            Adjusted age or None if invalid.
+        """
         if raw_age is None:
             return None
 
@@ -465,7 +490,7 @@ class FaceEngine:
         )
 
     # ------------------------------------------------------------------
-    # CONVERSIÓN DE RESULTADOS
+    # RESULT CONVERSION
     # ------------------------------------------------------------------
 
     def _to_results(
@@ -474,7 +499,16 @@ class FaceEngine:
         bbox_scale: float = 1.0,
         min_confidence: float | None = None,
     ) -> list[FaceResult]:
+        """Convert raw InsightFace results to FaceResult objects.
 
+        Args:
+            faces: Raw faces from FaceAnalysis.
+            bbox_scale: Scale factor to apply to bbox/landmarks.
+            min_confidence: Minimum detection confidence. Defaults to settings.
+
+        Returns:
+            Sorted list of FaceResult (descending confidence).
+        """
         if min_confidence is None:
             min_confidence = (
                 settings.vision.min_face_confidence
@@ -545,27 +579,30 @@ class FaceEngine:
         return results
 
     # ------------------------------------------------------------------
-    # ANÁLISIS
+    # ANALYSIS
     # ------------------------------------------------------------------
 
     def analyze(
         self,
         bgr_image: np.ndarray | str | Path,
     ) -> list[FaceResult]:
+        """Detect all faces in a BGR image (or from a str/Path).
+
+        Returns FaceResult objects sorted by descending confidence.
+
+        Strategy:
+            1. Load/validate the image safely.
+            2. Normal attempt.
+            3. If no faces, try downscaled image.
+            4. If still none, try upscaled image.
+
+        Args:
+            bgr_image: BGR image array or path to an image file.
+
+        Returns:
+            List of FaceResult sorted by detection confidence.
         """
-        Detecta todos los rostros de una imagen BGR (o desde una ruta str/Path).
-
-        Devuelve FaceResult ordenados por confianza descendente.
-
-        Estrategia:
-
-        1. Carga / valida de forma segura la imagen.
-        2. Intento normal.
-        3. Si no encuentra rostros, reduce la imagen.
-        4. Si tampoco encuentra, amplía la imagen.
-        """
-
-        # Cargar / validar imagen de forma segura ante rutas con acentos/espacios
+        # Load/validate image safely for paths with accents/spaces.
         bgr_image = self.load_image_bgr(bgr_image)
 
         self._ensure_loaded()
@@ -578,7 +615,7 @@ class FaceEngine:
             )
 
             # ----------------------------------------------------------
-            # INTENTO 1: imagen original
+            # ATTEMPT 1: original image
             # ----------------------------------------------------------
 
             faces = self._app.get(bgr_image)
@@ -591,7 +628,7 @@ class FaceEngine:
             )
 
             # ----------------------------------------------------------
-            # INTENTO 2: reducir imagen
+            # ATTEMPT 2: downscale image
             # ----------------------------------------------------------
 
             if not results:
@@ -629,7 +666,7 @@ class FaceEngine:
                     )
 
             # ----------------------------------------------------------
-            # INTENTO 3: ampliar imagen
+            # ATTEMPT 3: upscale image
             # ----------------------------------------------------------
 
             if not results:
@@ -681,26 +718,37 @@ class FaceEngine:
         return results
 
     # ------------------------------------------------------------------
-    # ROSTRO PRINCIPAL
+    # LARGEST FACE
     # ------------------------------------------------------------------
 
     def largest_face(
         self,
         bgr_image: np.ndarray | str | Path,
     ) -> FaceResult | None:
-        """
-        Devuelve el rostro de mayor área.
+        """Return the face with the largest area.
 
-        Útil para el registro de una sola persona.
-        """
+        Useful for single-person enrollment.
 
+        Args:
+            bgr_image: BGR image or path.
+
+        Returns:
+            FaceResult with largest bbox area, or None if no face.
+        """
         faces = self.analyze(bgr_image)
 
         if not faces:
             return None
 
         def area(face: FaceResult) -> float:
+            """Compute bbox area for a face.
 
+            Args:
+                face: Face result.
+
+            Returns:
+                Area in pixels.
+            """
             x1, y1, x2, y2 = face.bbox
 
             return (

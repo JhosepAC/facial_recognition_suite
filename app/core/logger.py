@@ -1,11 +1,12 @@
-"""
-Configuración centralizada de logging (loguru).
+"""Centralized logging configuration (loguru).
 
-Uso:
+Usage:
     from app.core.logger import logger
-    logger.info("Persona registrada: {}", person.uuid)
+    logger.info("Person registered: {}", person.uuid)
 """
+
 import sys
+
 from loguru import logger
 
 from app.core.config import settings
@@ -15,19 +16,18 @@ _LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
 logger.remove()
 
-# Consola
-# En una aplicación GUI empaquetada con PyInstaller,
-# sys.stderr puede ser None.
+# Console.
+# In a packaged GUI application (PyInstaller), sys.stderr may be None.
 if sys.stderr is not None:
     logger.add(
         sys.stderr,
         level=settings.logging.level,
         colorize=True,
         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
-               "<cyan>{module}</cyan>:<cyan>{function}</cyan> - <level>{message}</level>",
+                "<cyan>{module}</cyan>:<cyan>{function}</cyan> - <level>{message}</level>",
     )
 
-# Archivo general de la aplicación
+# General application log file.
 logger.add(
     _LOGS_DIR / "app.log",
     level=settings.logging.level,
@@ -37,7 +37,7 @@ logger.add(
     format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {module}:{function} - {message}",
 )
 
-# Archivo dedicado de auditoría (acciones sensibles: login, reconocimientos, cambios en BD)
+# Dedicated audit log (sensitive actions: login, recognitions, DB changes).
 logger.add(
     _LOGS_DIR / "audit.log",
     level="INFO",

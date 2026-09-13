@@ -1,14 +1,11 @@
-"""
-Servicio de estadísticas: calcula métricas agregadas y construye gráficos
-(matplotlib, backend Agg — sin ventana, seguro para llamarse desde cualquier
-hilo) a partir de la base de datos. Esta capa NO conoce PySide6; la GUI se
-encarga de convertir las figuras devueltas en QPixmap (ver
-app/gui/widgets/statistics_widget.py). Así se mantiene la separación
-estricta entre lógica/visualización de datos y la interfaz.
+"""Statistics service: computes aggregated metrics and builds charts
+(matplotlib, Agg backend — no window, safe to call from any thread) from the
+database. This layer does not depend on PySide6; the GUI is responsible for
+converting returned figures to QPixmap (see app/gui/widgets/statistics_widget.py).
+This keeps strict separation between data logic/visualization and the UI.
 
-Todas las consultas son ligeras y pueden ejecutarse repetidamente (por
-ejemplo, desde un temporizador de la GUI para mantener las estadísticas en
-tiempo real).
+All queries are lightweight and can be executed repeatedly (e.g., from a GUI
+timer to keep statistics live).
 """
 from __future__ import annotations
 
@@ -28,7 +25,7 @@ from app.vision.face_attributes import (
     ATTR_FIELDS, EYE_COLOR_LABELS, HAIR_COLOR_LABELS, FaceAttributes,
 )
 
-# --- Paleta visual coherente con el tema oscuro de la app (ver app/gui/theme.py) ---
+# --- Visual palette consistent with the app dark theme (see app/gui/theme.py) ---
 BG_FIGURE = "#22232c"
 BG_AXES = "#22232c"
 TEXT_COLOR = "#c9cbd6"
@@ -132,9 +129,9 @@ class StatisticsService:
         )
         tasa = round((eventos_match / total_eventos) * 100, 1) if total_eventos else 0.0
 
-        # Tasa por origen: webcam/video solo registran coincidencias
-        # (log_only_matches=True), por lo que la tasa global no es comparable
-        # entre orígenes. Se desglosa para no malinterpretar la métrica.
+        # Rate by origin: webcam/video log only matches
+        # (log_only_matches=True), so the global rate is not comparable
+        # across origins. Broken down to avoid misinterpretation.
         por_origen = {}
         origin_rows = (
             self.session.query(
@@ -154,7 +151,7 @@ class StatisticsService:
                 "tasa": round((match_o / total_o) * 100, 1) if total_o else 0.0,
             }
 
-        # --- métricas extendidas ---
+        # --- extended metrics ---
         since = datetime.utcnow() - timedelta(days=days)
         personas_periodo = (
             self.session.query(Person).filter(Person.fecha_creacion >= since).count()
@@ -312,7 +309,7 @@ class StatisticsService:
         )
 
     # ------------------------------------------------------------------ #
-    # Nuevas consultas (análisis detallado)
+    # Additional queries (detailed analysis)
     # ------------------------------------------------------------------ #
     def recent_events_df(self, limit: int = 50) -> pd.DataFrame:
         rows = (
@@ -424,9 +421,9 @@ class StatisticsService:
         return {"total": total, "match": matches, "unknown": total - matches}
 
     # ------------------------------------------------------------------ #
-    # Gráficos — devuelven matplotlib.figure.Figure (sin Qt).
-    # El llamador (GUI) es responsable de cerrar la figura tras usarla
-    # (plt.close(fig)) para no acumular memoria.
+    # Charts — return matplotlib.figure.Figure (no Qt).
+    # The caller (GUI) is responsible for closing the figure after use
+    # (plt.close(fig)) to avoid memory buildup.
     # ------------------------------------------------------------------ #
     def chart_persons_growth(self):
         df = self.persons_growth_df()
@@ -508,7 +505,7 @@ class StatisticsService:
         return fig
 
     # ------------------------------------------------------------------ #
-    # Nuevos gráficos (análisis detallado)
+    # Additional charts (detailed analysis)
     # ------------------------------------------------------------------ #
     def chart_weekly_activity(self, days: int = 30):
         df = self.day_of_week_activity_df(days)

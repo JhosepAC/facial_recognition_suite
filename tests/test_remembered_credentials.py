@@ -1,8 +1,9 @@
 """
-Tests del token de 'recordar sesión' cifrado en reposo (Fase 5, M14).
+Tests for the encrypted-at-rest "remember session" token (Phase 5, M14).
 
-Verifica que el token NO se persiste en claro en QSettings (se guarda cifrado
-con Fernet + base64) y que un valor en formato antiguo se descarta.
+Verifies that the token is NOT persisted in plain text in QSettings (stored
+encrypted with Fernet + base64) and that a value in the legacy format is
+discarded.
 """
 import base64
 import configparser
@@ -45,7 +46,7 @@ def test_token_stored_encrypted_not_plaintext(credentials, settings_file):
     cfg = configparser.ConfigParser()
     cfg.read(settings_file)
     stored = cfg["auth"]["remember_token"]
-    assert stored != "TOKEN_SECRETO"  # nunca en claro
+    assert stored != "TOKEN_SECRETO"  # never in plain text
 
     from app.core.security import decrypt_value
 
@@ -60,7 +61,7 @@ def test_token_stored_encrypted_not_plaintext(credentials, settings_file):
 
 def test_old_plaintext_format_is_discarded(credentials):
     credentials.save("jose", "x")
-    # Simular un valor en claro (formato antiguo previo al cifrado en reposo).
+    # Simulate a plain-text value (legacy format before encryption at rest).
     credentials._settings.setValue("auth/remember_token", "TOKEN_PLANO")
     credentials._settings.sync()
 

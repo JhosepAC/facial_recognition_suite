@@ -20,7 +20,7 @@ Runtime (CPU or CUDA GPU), and persistence uses embedded SQLite.
 The project follows a layered architecture with strict separation between UI,
 business logic, AI, and data access:
 
-![Architecture diagram](diagramas/arquitectura.png)
+![Architecture diagram](diagrams/architecture.png)
 
 | Layer | Folder | Responsibility |
 |---|---|---|
@@ -59,7 +59,7 @@ through `app/services`.
 
 ## 4. Data Model
 
-![UML class diagram](diagramas/uml_clases.png)
+![UML class diagram](diagrams/class_diagram.png)
 
 Relevant points of the model (`app/database/models.py`):
 

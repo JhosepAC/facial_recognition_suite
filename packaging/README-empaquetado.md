@@ -1,4 +1,4 @@
-# Packaging FaceScan v1.0.0
+# Packaging FaceScan v1.1.0
 
 This directory contains everything needed to generate the **FaceScan**
 installer for Windows.
@@ -32,7 +32,7 @@ The script executes, in order:
    - User data is written to `%LOCALAPPDATA%\FaceScan`, never to the program
      folder.
 5. **Inno Setup** with `installer.iss`:
-   - `dist\FaceScan-Setup-1.0.0.exe` (single installer).
+   - `dist\FaceScan-Setup-1.1.0.exe` (single installer).
 
 ## Packaging Pieces
 

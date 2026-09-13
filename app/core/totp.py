@@ -1,17 +1,18 @@
+"""TOTP code generation and verification (RFC 6238) for second-factor auth (2FA).
+
+Uses only the standard library (HMAC-SHA1 / base32) with no external dependencies.
+
+Typical usage:
+    secret = generate_secret()                 # base32, store per user
+    uri    = otpauth_uri(secret, "user")      # pair with Google Authenticator
+
+    code = current_code(secret, now)           # code the user types
+    valid = verify_code(secret, code, now)     # tolerates +/-1 window of 30 s
+
+The secret must be stored encrypted at rest (see app.core.security) and never
+shown in the UI after the provisioning step.
 """
-Generación y verificación de códigos TOTP (RFC 6238) para el segundo factor
-de autenticación (2FA), sin dependencias externas (HMAC-SHA1 / base32 / stdlib).
 
-Uso típico:
-    secret = generate_secret()                 # base32, para guardar por usuario
-    uri    = otpauth_uri(secret, "usuario")    # para emparejar con Google Authenticator
-
-    code = current_code(secret, now)           # el código que el usuario teclea
-    valid = verify_code(secret, code, now)     # tolera ±1 ventana de 30 s
-
-El secreto debe almacenarse cifrado en reposo (ver app.core.security) y nunca
-mostrarse en la interfaz después de la operación que lo presenta.
-"""
 from __future__ import annotations
 
 import base64
@@ -23,30 +24,63 @@ import time
 
 _PERIOD_SECONDS = 30
 _DIGITS = 6
-_WINDOW = 1  # ventanas adyacentes toleradas (+/-)
+_WINDOW = 1  # Adjacent windows tolerated (+/-).
 
 
 def _b32decode(secret: str) -> bytes:
-    """Decodifica un secreto base32 (tolera pading ausente y minúsculas)."""
+    """Decode a base32 secret (tolerates missing padding and lowercase).
+
+    Args:
+        secret: Base32-encoded secret string.
+
+    Returns:
+        Decoded secret bytes.
+    """
     padded = secret.strip().upper().replace(" ", "")
     padded += "=" * ((8 - len(padded) % 8) % 8)
     return base64.b32decode(padded, casefold=True)
 
 
 def generate_secret(num_bytes: int = 20) -> str:
-    """Genera un secreto aleatorio en formato base32 sin pading."""
+    """Generate a random secret in base32 format without padding.
+
+    Args:
+        num_bytes: Number of random bytes to generate.
+
+    Returns:
+        Base32-encoded secret string without padding.
+    """
     raw = secrets.token_bytes(num_bytes)
     return base64.b32encode(raw).rstrip(b"=").decode("ascii")
 
 
 def current_code(secret: str, now: float | None = None) -> str:
-    """Código TOTP de 6 dígitos para el instante dado (por defecto: ahora)."""
+    """Return the 6-digit TOTP code for the given instant.
+
+    Args:
+        secret: Base32-encoded shared secret.
+        now: Unix timestamp in seconds. Defaults to current time if None.
+
+    Returns:
+        6-digit TOTP code as a string.
+    """
     return _code_at(secret, _counter(now))
 
 
 def verify_code(secret: str, code: str, now: float | None = None,
                 digits: int = _DIGITS, window: int = _WINDOW) -> bool:
-    """Verifica un código contra la ventana actual ±``window`` pasos de 30 s."""
+    """Verify a code against the current window +/- ``window`` 30 s steps.
+
+    Args:
+        secret: Base32-encoded shared secret.
+        code: Code supplied by the user.
+        now: Reference Unix timestamp. Defaults to current time if None.
+        digits: Expected number of digits.
+        window: Number of adjacent 30 s windows to tolerate.
+
+    Returns:
+        True if the code is valid within the window, False otherwise.
+    """
     code = str(code).strip()
     if not code or not code.isdigit() or len(code) != digits:
         return False
@@ -58,7 +92,16 @@ def verify_code(secret: str, code: str, now: float | None = None,
 
 
 def otpauth_uri(secret: str, account: str, issuer: str = "FaceScan") -> str:
-    """URI de emparejamiento estándar para apps autenticadoras (otpauth://)."""
+    """Build the standard pairing URI for authenticator apps (otpauth://).
+
+    Args:
+        secret: Base32-encoded shared secret.
+        account: Account name (e.g., username).
+        issuer: Issuer label shown in the authenticator app.
+
+    Returns:
+        otpauth URI string.
+    """
     return (
         f"otpauth://totp/{issuer}:{account}?secret={secret}"
         f"&issuer={issuer}&algorithm=SHA1&digits={_DIGITS}&period={_PERIOD_SECONDS}"
@@ -66,10 +109,28 @@ def otpauth_uri(secret: str, account: str, issuer: str = "FaceScan") -> str:
 
 
 def _counter(now: float | None) -> int:
+    """Return the TOTP time-step counter for the given instant.
+
+    Args:
+        now: Unix timestamp. Uses current time if None.
+
+    Returns:
+        Integer time-step counter.
+    """
     return int((time.time() if now is None else now) // _PERIOD_SECONDS)
 
 
 def _code_at(secret: str, counter: int, digits: int = _DIGITS) -> str:
+    """Generate a TOTP code for a specific counter value.
+
+    Args:
+        secret: Base32-encoded shared secret.
+        counter: Time-step counter.
+        digits: Number of digits to produce.
+
+    Returns:
+        Zero-padded TOTP code.
+    """
     key = _b32decode(secret)
     msg = struct.pack(">Q", counter & 0xFFFFFFFFFFFFFFFF)
     digest = hmac.new(key, msg, hashlib.sha1).digest()

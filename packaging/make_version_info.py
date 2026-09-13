@@ -1,8 +1,9 @@
-"""
-Genera packaging/version_info.txt (VSVersionInfo de PyInstaller) a partir de
-app/__init__.py (__version__), la única fuente de verdad de la versión.
+"""Generate packaging/version_info.txt for the Windows executable.
 
-Uso:
+Reads the version from ``app/__init__.py`` (``__version__``), the single
+source of truth, and writes a PyInstaller ``VSVersionInfo`` resource file.
+
+Usage:
     python packaging/make_version_info.py
 """
 import sys

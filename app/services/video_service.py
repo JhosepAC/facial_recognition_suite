@@ -1,11 +1,10 @@
-"""
-Capa de servicio del módulo de Video. Orquesta:
-  VideoReader (extracción de frames) + RecognitionService (detección/match)
-  + VideoJobRepository (persistencia) + almacenamiento de evidencia en disco.
+"""Video service layer. Orchestrates:
+  VideoReader (frame extraction) + RecognitionService (detection/match)
+  + VideoJobRepository (persistence) + evidence storage on disk.
 
-La GUI (o cualquier llamador) solo debe usar VideoService; no debe tocar
-VideoReader ni RecognitionService directamente para mantener la separación
-estricta interfaz/lógica.
+The GUI (or any caller) should only use VideoService; it must not access
+VideoReader or RecognitionService directly to keep the strict UI/logic
+separation.
 """
 from __future__ import annotations
 
@@ -56,7 +55,7 @@ class VideoService:
     def validate_video_file(self, file_path: str) -> None:
         path = Path(file_path)
         if not path.exists():
-            raise BioVisionError(f"El archivo no existe: {file_path}")
+            raise BioVisionError(f"File does not exist: {file_path}")
         if path.suffix.lower() not in settings.video.allowed_extensions:
             allowed = ", ".join(settings.video.allowed_extensions)
             raise BioVisionError(
@@ -246,13 +245,13 @@ class VideoService:
         job = self.repo.get_job(job_id)
         if job is None:
             return False
-        # 1) Se borra primero la BD y se confirma: si falla, los archivos de
-        #    evidencia siguen en disco y no se pierden de forma irreversible.
+        # 1) DB is deleted first and committed: if it fails, evidence files
+        #    remain on disk and are not irreversibly lost.
         evidence_paths = [d.evidencia_path for d in job.detections if d.evidencia_path]
         deleted = self.repo.delete_job(job_id)
         self.session.commit()
-        # 2) Solo después se eliminan los archivos de evidencia (fallos de
-        #    borrado de archivos no deben abortar la operación en BD).
+        # 2) Only then are evidence files removed (file deletion failures
+        #    must not abort the DB operation).
         for path in evidence_paths:
             try:
                 Path(path).unlink(missing_ok=True)
@@ -263,7 +262,7 @@ class VideoService:
         return deleted
 
     # ------------------------------------------------------------------ #
-    # Exportación de detecciones (CSV / Excel con diseño)
+    # Detection export (CSV / Excel with styled output).
     # ------------------------------------------------------------------ #
     def export_detections(
         self,
@@ -272,10 +271,20 @@ class VideoService:
         fmt: str = "csv",
         usuario: str | None = None,
     ) -> int:
-        """Exporta las detecciones de un job a CSV o Excel. Devuelve el total exportado."""
+        """Export job detections to CSV or Excel.
+
+        Args:
+            job_id: Identifier of the video job.
+            path: Destination file path.
+            fmt: Export format (``csv`` or ``excel``).
+            usuario: Acting username for audit logging.
+
+        Returns:
+            Number of exported records.
+        """
         job = self.get_job(job_id)
         if job is None:
-            raise BioVisionError("El análisis de video no existe.")
+            raise BioVisionError("Video analysis does not exist.")
         detections = self.list_detections(job_id)
         fmt = (fmt or "csv").lower()
 
@@ -332,7 +341,7 @@ class VideoService:
 
         wb = Workbook()
 
-        # ---- Hoja 1: Resumen ----
+        # ---- Sheet 1: Summary ----
         ws = wb.active
         ws.title = "Resumen"
         ws.sheet_view.showGridLines = False
@@ -373,7 +382,7 @@ class VideoService:
                 ws.cell(row=r, column=1).fill = PatternFill("solid", fgColor=GREY_SOFT)
                 ws.cell(row=r, column=2).fill = PatternFill("solid", fgColor=GREY_SOFT)
 
-        # Personas detectadas en el resumen
+        # Persons detected in the summary
         pr = start + len(kpi_rows) + 2
         ws.cell(row=pr, column=1, value="Personas detectadas").font = Font(size=12, bold=True, color=BLUE_DARK)
         pr += 1
@@ -393,7 +402,7 @@ class VideoService:
         ws.column_dimensions["B"].width = 22
         ws.column_dimensions["C"].width = 22
 
-        # ---- Hoja "Detecciones"----
+        # ---- Sheet "Detections" ----
         ws_d = wb.create_sheet("Detecciones")
         attr_headers = [_ATTR_HEADER_LABELS.get(f, f) for f in ATTR_FIELDS]
         headers = ["#", "Frame", "Tiempo (hh:mm:ss)", "Persona", "Confianza (%)",

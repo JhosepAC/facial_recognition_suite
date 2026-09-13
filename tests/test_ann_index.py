@@ -1,15 +1,15 @@
 """
-B5 — Persistencia del índice ANN sin pickle.
+B5 — ANN index persistence without pickle.
 
-Los metadatos de identidad (uuids/emb_ids) viajan en el JSON junto al índice
-FAISS; el formato legacy ``.npz`` (basado en pickle) se elimina al persistir
-y al cargar.
+Identity metadata (uuids/emb_ids) travels in the JSON alongside the FAISS
+index; the legacy ``.npz`` format (pickle-based) is removed on save and on
+load.
 """
 import numpy as np
 import pytest
 
 from app.recognition.ann_index import (
-    _faiss_available, AnnConfig, BiometricIndex,
+    AnnConfig, BiometricIndex, _faiss_available,
 )
 
 DIM = 512
@@ -37,7 +37,7 @@ def _fingerprint(gallery):
 
 @pytest.mark.skipif(
     not __import__("app.recognition.ann_index", fromlist=["_faiss_available"])._faiss_available(),
-    reason="faiss no está instalado",
+    reason="faiss is not installed",
 )
 def test_persist_and_load_roundtrip(tmp_path):
     gallery = _gallery(2100)
@@ -50,7 +50,7 @@ def test_persist_and_load_roundtrip(tmp_path):
     assert saved is not None
     assert (tmp_path / "ann_2100_2099.faiss").exists()
     assert (tmp_path / "ann_2100_2099.json").exists()
-    # El formato legacy basado en pickle nunca se escribe
+    # Legacy pickle-based format is never written.
     assert not (tmp_path / "ann_2100_2099.npz").exists()
 
     loaded = BiometricIndex.load(fingerprint, cfg)
@@ -62,7 +62,7 @@ def test_persist_and_load_roundtrip(tmp_path):
 
 @pytest.mark.skipif(
     not __import__("app.recognition.ann_index", fromlist=["_faiss_available"])._faiss_available(),
-    reason="faiss no está instalado",
+    reason="faiss is not installed",
 )
 def test_load_removes_legacy_npz(tmp_path):
     gallery = _gallery(2100)
@@ -81,7 +81,7 @@ def test_load_removes_legacy_npz(tmp_path):
 
 @pytest.mark.skipif(
     not __import__("app.recognition.ann_index", fromlist=["_faiss_available"])._faiss_available(),
-    reason="faiss no está instalado",
+    reason="faiss is not installed",
 )
 def test_load_missing_uuids_metadata_returns_none(tmp_path):
     import json
@@ -92,7 +92,7 @@ def test_load_missing_uuids_metadata_returns_none(tmp_path):
     fingerprint = _fingerprint(gallery)
     idx.save(fingerprint, cfg)
 
-    # Simular un JSON legacy sin metadatos de identidad
+    # Simulate a legacy JSON without identity metadata.
     json_path = tmp_path / "ann_2100_2099.json"
     meta = json.loads(json_path.read_text(encoding="utf-8"))
     meta.pop("uuids")
@@ -104,7 +104,7 @@ def test_load_missing_uuids_metadata_returns_none(tmp_path):
 
 @pytest.mark.skipif(
     not __import__("app.recognition.ann_index", fromlist=["_faiss_available"])._faiss_available(),
-    reason="faiss no está instalado",
+    reason="faiss is not installed",
 )
 def test_search_maps_to_uuid_and_embedding_id(tmp_path):
     gallery = _gallery(2100)

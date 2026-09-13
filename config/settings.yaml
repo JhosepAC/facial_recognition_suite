@@ -1,12 +1,12 @@
 # =========================================================
-# Configuración global — Facial Recognition Suite
+# Global configuration — Facial Recognition Suite
 # =========================================================
 
 app:
   name: "FaceScan"
-  # La versión se gestiona en app/__init__.py (__version__); el valor del YAML
-  # se ignora deliberadamente para mantener una única fuente de verdad.
-  version: "1.0.0"
+  # Version is managed in app/__init__.py (__version__); the YAML value
+  # is intentionally ignored to keep a single source of truth.
+  version: "1.1.0"
   theme: "dark"              # dark | light
   language: "es"
 
@@ -16,32 +16,32 @@ database:
 
 vision:
   detector_backend: "insightface"     # insightface | mediapipe
-  detector_model: "buffalo_l"         # paquete de modelos insightface (RetinaFace/SCRFD + ArcFace)
+  detector_model: "buffalo_l"         # InsightFace model pack (RetinaFace/SCRFD + ArcFace)
   det_size: [640, 640]
-  ctx_id: -1                          # -1 = CPU, 0 = primera GPU CUDA disponible
-  min_face_confidence: 0.30           # umbral de confianza del detector (menor = detecta más)
+  ctx_id: -1                          # -1 = CPU, 0 = first available CUDA GPU
+  min_face_confidence: 0.30           # Detector confidence threshold (lower = more detections)
   embedding_dim: 512
-  quality_min_score: 25.0             # calidad mínima (0-100) para aceptar un rostro (registro y match) — bajado de 45 para mejorar recall en fotos/video reales
-  retry_downscale: 0.5                # si no se detecta nada, reintentar con la imagen a esta escala
-  min_face_size: 32                   # lado mínimo (px) del bbox para considerar un rostro utilizable — permite rostros más pequeños en video
-  max_yaw_deg: 35.0                   # inclinación lateral máxima tolerada al registrar (grados) — relajado para mejorar recall
-  max_pitch_deg: 40.0                 # inclinación vertical máxima tolerada al registrar (grados) — pitch heurístico frontal ~30-38°, se sube a 40 para no rechazar fotos válidas como facescan/jhosep-*.jpeg
-  enroll_require_single_face: true    # rechazar fotos grupales al registrar (un solo rostro)
-  enable_face_attributes: true        # análisis facial extendido (gafas/mascarilla/barba/bigote/sonrisa/ojos)
+  quality_min_score: 25.0             # Minimum quality score (0-100) to accept a face (enrollment and match) — lowered from 45 to improve recall on real photos/videos
+  retry_downscale: 0.5                # Retry scale when no face is detected
+  min_face_size: 32                   # Minimum side (px) of the bounding box to consider a face usable — allows smaller faces in video
+  max_yaw_deg: 35.0                   # Maximum yaw angle tolerated during enrollment (degrees) — relaxed to improve recall
+  max_pitch_deg: 40.0                 # Maximum pitch angle tolerated during enrollment (degrees) — heuristic frontal pitch ~30-38°, raised to 40 to avoid rejecting valid photos like facescan/jhosep-*.jpeg
+  enroll_require_single_face: true    # Reject group photos during enrollment (single face required)
+  enable_face_attributes: true        # Extended facial analysis (glasses/mask/beard/moustache/smile/eyes)
 
 recognition:
   similarity_metric: "cosine"
-  match_threshold: 0.55      # distancia coseno máxima para considerar coincidencia — subido de 0.40 (demasiado estricto, causaba falsos negativos) a 0.55, valor recomendado para buffalo_l en condiciones reales
+  match_threshold: 0.55      # Maximum cosine distance to consider a match — raised from 0.40 (too strict, caused false negatives) to 0.55, recommended value for buffalo_l in real conditions
   top_k_results: 5
-  apply_quality_gate: false   # desactivado para mejorar recall: el gate descartaba silenciosamente rostros válidos en foto/video/webcam. Mantener true solo si calidad es crítica.
-  dedupe_threshold: 0.30     # distancia bajo la cual se considera "mismo rostro" al deduplicar
-  # --- Índice ANN (FAISS) para la búsqueda 1:N ---
-  ann_enabled: true          # activar el índice aproximado (requiere `faiss-cpu` instalado)
-  ann_min_size: 256          # galería menor a esto -> búsqueda lineal exacta
-  ann_ivf_min_size: 2000     # sobre este tamaño usa IndexIVFFlat (ANN real); bajo -> flat exacto
-  ann_nlist: 0               # nº de clusters IVF; 0 = automático (min(n//64, 1024))
-  ann_nprobe: 0              # nº de clusters explorados; 0 = automático (max(1, nlist//8))
-  ann_persist: false         # persistir el índice IVF a disco (arranque más rápido en bases grandes)
+  apply_quality_gate: false   # Disabled to improve recall: the gate silently discarded valid faces in photo/video/webcam. Keep true only if quality is critical.
+  dedupe_threshold: 0.30     # Distance below which faces are considered the same when deduplicating
+  # --- ANN index (FAISS) for 1:N search ---
+  ann_enabled: true          # Enable approximate index (requires faiss-cpu installed)
+  ann_min_size: 256          # Gallery smaller than this -> exact linear search
+  ann_ivf_min_size: 2000     # Above this size use IndexIVFFlat (real ANN); below -> exact flat
+  ann_nlist: 0               # Number of IVF clusters; 0 = auto (min(n//64, 1024))
+  ann_nprobe: 0              # Number of clusters to probe; 0 = auto (max(1, nlist//8))
+  ann_persist: false         # Persist IVF index to disk (faster startup for large galleries)
   ann_index_dir: "data/ann_index"
 
 camera:
@@ -49,15 +49,15 @@ camera:
   frame_width: 960
   frame_height: 540
   target_fps: 30
-  recognition_interval_frames: 10   # ejecutar reconocimiento cada N frames (rendimiento) — subido de 5 a 10 para reducir carga CPU y mantener UI fluida
-  max_recognition_width: 640        # ancho máximo para inferencia en vivo (downscale antes de detectar, bbox se reescala)
-  display_max_fps: 30               # FPS máximo de renderizado en UI (throttle)
+  recognition_interval_frames: 10   # Run recognition every N frames (performance) — raised from 5 to 10 to reduce CPU load and keep UI fluid
+  max_recognition_width: 640        # Maximum width for live inference (downscale before detection, bounding box is rescaled)
+  display_max_fps: 30               # Maximum UI rendering FPS (throttle)
 
 video:
   allowed_extensions: [".mp4", ".avi", ".mov", ".mkv"]
-  sample_interval_frames: 15        # procesar 1 de cada N frames (a 30fps ≈ cada 0.5s)
-  max_processing_width: 960         # redimensionar frames grandes antes de detectar (rendimiento)
-  evidence_crop_padding: 0.25       # margen proporcional alrededor del rostro al guardar evidencia
+  sample_interval_frames: 15        # Process 1 of every N frames (at 30fps ~ every 0.5s)
+  max_processing_width: 960         # Resize large frames before detection (performance)
+  evidence_crop_padding: 0.25       # Proportional margin around the face when saving evidence
   save_evidence_thumbnails: true
   evidence_dir: "data/video_evidence"
 
@@ -69,15 +69,15 @@ storage:
 
 security:
   session_timeout_minutes: 30
-  max_session_minutes: 0           # 0 = sin tope de duración total de la sesión
-  remember_credentials_days: 30    # días que dura "Recordar sesión" antes de exigir login
+  max_session_minutes: 0           # 0 = no total session duration cap
+  remember_credentials_days: 30    # Days until Remember Session requires login again
   min_password_length: 8
   lockout_attempts: 5
   lockout_minutes: 15
-  # Retraso (ms) entre intentos de login fallidos y registros de cuenta.
-  # 0 desactiva el throttle (no recomendado).
+  # Delay (ms) between failed login attempts and account registrations.
+  # 0 disables throttling (not recommended).
   login_failure_delay_ms: 250
-  # Registro de nuevas cuentas desde la pantalla de inicio de sesión.
+  # Self-registration of new accounts from the login screen.
   allow_self_registration: true
   default_registration_role: "Operador"
 

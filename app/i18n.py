@@ -1,18 +1,17 @@
-"""
-Internacionalización (Español / English) de la interfaz de FaceScan.
+"""Internationalization (Spanish / English) for the FaceScan UI.
 
-Estrategia:
-  - Catálogos JSON por idioma en app/strings/{es,en}.json.
-  - ``tr(key, **kwargs)`` consulta el catálogo del idioma activo; si falta la
-    clave, hace fallback al catálogo español y, en último caso, devuelve la
-    propia key. Esto permite migrar las cadenas de forma incremental sin
-    romper la aplicación.
-  - ``I18nBus.languageChanged`` es la señal de hot-swap: cada widget que
-    quiera retraducirse en vivo conecta un método ``_retranslate()``.
+Strategy:
+    - Per-language JSON catalogs in ``app/strings/{es,en}.json``.
+    - ``tr(key, **kwargs)`` looks up the active language catalog; if the
+      key is missing it falls back to the Spanish catalog and, as a last
+      resort, returns the key itself. This allows incremental migration
+      without breaking the application.
+    - ``I18nBus.languageChanged`` is the hot-swap signal: each widget that
+      wants live retranslation connects a ``_retranslate()`` method.
 
-Este módulo es el paso previo a la ruta QTranslator: todas las cadenas de la
-UI quedan centralizadas en un catálogo, de modo que migrar a Qt .ts/.qm más
-adelante solo requeriría reemplazar ``tr()`` por ``QObject.translate``.
+This module is the precursor to the QTranslator route: all UI strings are
+centralized in a catalog so migrating to Qt ``.ts/.qm`` later would only
+require replacing ``tr()`` with ``QObject.translate``.
 """
 from __future__ import annotations
 
@@ -29,7 +28,7 @@ _DEFAULT = "en"
 
 
 class I18nBus(QObject):
-    """Punto único de difusión de cambios de idioma (hot-swap en vivo)."""
+    """Single broadcast point for language changes (live hot-swap)."""
 
     languageChanged = Signal(str)
 
@@ -39,11 +38,24 @@ _current: dict[str, str] = {"lang": _DEFAULT}
 
 
 def bus() -> I18nBus:
+    """Return the global i18n bus instance.
+
+    Returns:
+        The singleton ``I18nBus`` used to broadcast language changes.
+    """
     return _bus
 
 
 @lru_cache(maxsize=len(_SUPPORTED))
 def _catalog(lang: str) -> dict[str, str]:
+    """Load and cache the translation catalog for a language.
+
+    Args:
+        lang: Language code (e.g., ``"es"`` or ``"en"``).
+
+    Returns:
+        Dictionary mapping translation keys to localized strings.
+    """
     path = _STRINGS_DIR / f"{lang}.json"
     if not path.exists():
         return {}
@@ -52,16 +64,32 @@ def _catalog(lang: str) -> dict[str, str]:
 
 
 def system_language() -> str:
-    """Idioma del sistema usando QLocale; si no es es/en, devuelve inglés."""
+    """Detect the system language via QLocale.
+
+    Returns:
+        ``"es"`` or ``"en"`` if the system locale matches; otherwise the
+        default language (English).
+    """
     base = QLocale.system().name().split("_")[0].lower()
     return base if base in _SUPPORTED else _DEFAULT
 
 
 def current_language() -> str:
+    """Return the currently active language code.
+
+    Returns:
+        Active language code.
+    """
     return _current["lang"]
 
 
 def set_language(language: str) -> None:
+    """Set the active language and emit the change signal if needed.
+
+    Args:
+        language: Desired language code. Falls back to the default if
+            unsupported.
+    """
     if language not in _SUPPORTED:
         language = _DEFAULT
     if language != _current["lang"]:
@@ -70,7 +98,15 @@ def set_language(language: str) -> None:
 
 
 def tr(key: str, **kwargs: Any) -> str:
-    """Traduce una clave del catálogo del idioma activo (con fallback es)."""
+    """Translate a catalog key for the active language (with Spanish fallback).
+
+    Args:
+        key: Translation key to look up.
+        **kwargs: Optional format arguments applied to the translated string.
+
+    Returns:
+        Translated and formatted string, or ``key`` itself if not found.
+    """
     text = _catalog(_current["lang"]).get(key)
     if text is None:
         text = _catalog("es").get(key, key)

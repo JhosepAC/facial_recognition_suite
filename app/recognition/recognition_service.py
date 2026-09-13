@@ -1,17 +1,18 @@
-"""
-Servicio de reconocimiento facial: capa que conecta el motor de visión
-(app.vision) con la base biométrica (app.database) sin que ninguna de las
-dos conozca a la otra directamente. Aquí vive la lógica de negocio de:
+"""Facial recognition service: bridges the vision engine and biometric DB.
 
-- registrar el embedding de una foto de una persona,
-- comparar dos rostros (1:1),
-- buscar la(s) persona(s) más parecida(s) a un rostro dado (1:N),
-- reconocer todos los rostros presentes en una imagen/frame (webcam, video).
+Connects the vision engine (app.vision) with the biometric database
+(app.database) without either knowing the other directly. Business logic for:
 
-Aplica un GATE de calidad en todos los flujos de reconocimiento (no solo al
-registrar): los matches sobre rostros borrosos, oscuros, mal encarados o
-demasiado pequeños no se emiten, para reducir falsos positivos en vivo.
+- registering a person's photo embedding,
+- comparing two faces (1:1),
+- searching for the most similar person(s) to a given face (1:N),
+- recognizing all faces in an image/frame (webcam, video).
+
+Applies a quality gate in all recognition flows (not only at enrollment):
+matches on blurry, dark, poorly posed, or too-small faces are not emitted,
+reducing false positives in live operation.
 """
+
 from __future__ import annotations
 
 import json
@@ -38,6 +39,8 @@ from app.vision.face_quality import QualityScores, evaluate as evaluate_quality
 
 @dataclass
 class RecognizedFace:
+    """Recognized face with identity and confidence."""
+
     bbox: tuple[float, float, float, float]
     person_uuid: str | None
     person_nombre: str | None
@@ -48,12 +51,27 @@ class RecognizedFace:
 
 
 def _largest_area(result: FaceResult) -> float:
+    """Compute bounding-box area for a FaceResult.
+
+    Args:
+        result: Face detection result.
+
+    Returns:
+        Area in pixels.
+    """
     x1, y1, x2, y2 = result.bbox
     return max(0.0, x2 - x1) * max(0.0, y2 - y1)
 
 
 class RecognitionService:
+    """Service orchestrating detection, quality gating, and matching."""
+
     def __init__(self, session: Session):
+        """Initialize the service.
+
+        Args:
+            session: Active SQLAlchemy session.
+        """
         self.session = session
         self.embedding_repo = EmbeddingRepository(session)
         self.engine = FaceEngine.instance()
@@ -62,10 +80,23 @@ class RecognitionService:
         self._gallery_cache_fp = None
 
     # ------------------------------------------------------------------ #
-    # Calidad (gate aplicado a todos los flujos de match)
+    # Quality gate (applied to all match flows)
     # ------------------------------------------------------------------ #
     def _quality_valid(self, image_bgr: np.ndarray, face: FaceResult,
                        raise_on_fail: bool = False) -> bool:
+        """Check if a face passes the quality gate.
+
+        Args:
+            image_bgr: Source image.
+            face: Detected face.
+            raise_on_fail: Whether to raise LowQualityFaceError on failure.
+
+        Returns:
+            True if quality is sufficient.
+
+        Raises:
+            LowQualityFaceError: If quality is insufficient and raise_on_fail is True.
+        """
         if not settings.recognition.apply_quality_gate:
             return True
         quality = evaluate_quality(image_bgr, face.bbox, face.landmarks)
@@ -82,27 +113,42 @@ class RecognitionService:
         return ok
 
     # ------------------------------------------------------------------ #
-    # Registro
+    # Enrollment
     # ------------------------------------------------------------------ #
     def enroll_photo(
         self, person_uuid: str, image_bgr: np.ndarray, photo_id: int | None = None,
         usuario: str | None = None,
     ) -> FaceEmbedding:
-        """Extrae el embedding del rostro de una foto y lo guarda.
+        """Extract a face embedding from a photo and persist it.
 
-        Valida la foto antes de persistir: un solo rostro (si está habilitado),
-        calidad mínima, pose frontal y tamaño suficiente. Además rechaza
-        embeddings que colisionan biométricamente con otra persona.
+        Validates the photo before persisting: single face (if enabled),
+        minimum quality, frontal pose, and sufficient size. Also rejects
+        embeddings that collide biometrically with another person.
+
+        Args:
+            person_uuid: Owner person UUID.
+            image_bgr: Photo image in BGR format.
+            photo_id: Associated Photo ID, if any.
+            usuario: Acting username for audit logging.
+
+        Returns:
+            Persisted FaceEmbedding.
+
+        Raises:
+            NoFaceDetectedError: If no face is found.
+            MultipleFacesError: If multiple faces are found and single-face enrollment is required.
+            LowQualityFaceError: If quality checks fail.
+            DuplicatePersonError: If the face matches another person.
         """
         faces = self.engine.analyze(image_bgr)
         if not faces:
-            raise NoFaceDetectedError("No se detectó ningún rostro en la fotografía.")
+            raise NoFaceDetectedError("No face detected in the photo.")
 
         if len(faces) > 1:
             if settings.vision.enroll_require_single_face:
                 raise MultipleFacesError(
-                    f"Se detectaron {len(faces)} rostros en la fotografía. "
-                    "Sube una foto con una sola persona."
+                    f"Detected {len(faces)} faces in the photo. "
+                    "Upload a photo with a single person."
                 )
             face = max(faces, key=_largest_area)
         else:
@@ -111,17 +157,17 @@ class RecognitionService:
         quality = evaluate_quality(image_bgr, face.bbox, face.landmarks)
         reasons = []
         if not quality.size_ok:
-            reasons.append("rostro demasiado pequeño o lejano")
+            reasons.append("face too small or too far")
         if (abs(quality.yaw_deg) > settings.vision.max_yaw_deg
                 or abs(quality.pitch_deg) > settings.vision.max_pitch_deg):
-            reasons.append("rostro no frontal (gira la cabeza hacia la cámara)")
+            reasons.append("non-frontal face (turn toward the camera)")
         if quality.calidad_global < settings.vision.quality_min_score:
             reasons.append(
-                f"calidad de {quality.calidad_global:.0f}/100 "
-                "(necesita ser más nítido o mejor iluminado)")
+                f"quality {quality.calidad_global:.0f}/100 "
+                "(needs to be sharper or better lit)")
         if reasons:
             raise LowQualityFaceError(
-                "Calidad de rostro insuficiente: " + ", ".join(reasons) + "."
+                "Insufficient face quality: " + ", ".join(reasons) + "."
             )
 
         self._reject_duplicate(person_uuid, face.embedding)
@@ -143,33 +189,54 @@ class RecognitionService:
         )
         self.embedding_repo.add(embedding)
         audit_logger.info(
-            "Embedding registrado | persona={} | calidad={} | usuario={}",
-            person_uuid, quality.calidad_global, usuario or "sistema",
+            "Embedding enrolled | person={} | quality={} | user={}",
+            person_uuid, quality.calidad_global, usuario or "system",
         )
         return embedding
 
     def _reject_duplicate(self, person_uuid: str, embedding: np.ndarray) -> None:
-        """Evita duplicar rostros: rechaza colisión biométrica con otra persona."""
+        """Reject a face that collides biometrically with another person.
+
+        Args:
+            person_uuid: Enrolling person UUID (excluded from comparison).
+            embedding: New face embedding.
+
+        Raises:
+            DuplicatePersonError: If a duplicate is found.
+        """
         threshold = settings.recognition.dedupe_threshold
         for other_uuid, _emb_id, vector in self._load_gallery():
             if other_uuid == person_uuid:
                 continue
             if cosine_distance(embedding, vector) < threshold:
                 raise DuplicatePersonError(
-                    "Este rostro ya está registrado a nombre de otra persona. "
-                    "Verifica que no exista un duplicado en la base."
+                    "This face is already registered to another person. "
+                    "Check for duplicates in the database."
                 )
 
     # ------------------------------------------------------------------ #
-    # Comparador biométrico 1:1
+    # 1:1 comparison
     # ------------------------------------------------------------------ #
     def compare_images(self, image_a_bgr: np.ndarray, image_b_bgr: np.ndarray) -> dict:
+        """Compare two face images 1:1.
+
+        Args:
+            image_a_bgr: First image in BGR format.
+            image_b_bgr: Second image in BGR format.
+
+        Returns:
+            Comparison result dictionary including face data.
+
+        Raises:
+            NoFaceDetectedError: If no face is detected in either image.
+            LowQualityFaceError: If either face fails the quality gate.
+        """
         faces = self.engine.analyze(image_a_bgr)
         face_a = max(faces, key=_largest_area) if faces else None
         faces = self.engine.analyze(image_b_bgr)
         face_b = max(faces, key=_largest_area) if faces else None
         if face_a is None or face_b is None:
-            raise NoFaceDetectedError("No se detectó rostro en una de las dos imágenes.")
+            raise NoFaceDetectedError("No face detected in one of the two images.")
 
         self._quality_valid(image_a_bgr, face_a, raise_on_fail=True)
         self._quality_valid(image_b_bgr, face_b, raise_on_fail=True)
@@ -180,19 +247,27 @@ class RecognitionService:
         return result
 
     # ------------------------------------------------------------------ #
-    # Búsqueda 1:N
+    # 1:N search
     # ------------------------------------------------------------------ #
     def _gallery_fingerprint(self) -> tuple:
+        """Return a fingerprint of the current gallery (count, max_id).
+
+        Returns:
+            Tuple fingerprint for cache invalidation.
+        """
         row = self.session.execute(
             select(func.count(FaceEmbedding.id), func.max(FaceEmbedding.id))
         ).one()
         return (int(row[0]), int(row[1]) if row[1] is not None else -1)
 
     def _load_gallery(self) -> list[tuple[str, int, np.ndarray]]:
-        """Galería de embeddings cacheada (vectores unitarios).
+        """Return the embedding gallery, cached and normalized.
 
-        Se recalcula solo cuando el conjunto de la base cambia (count/max id),
-        en vez de releer y deserializar toda la base en cada frame.
+        Recomputed only when the gallery fingerprint changes (count/max id),
+        instead of re-reading and deserializing on every frame.
+
+        Returns:
+            List of (person_uuid, embedding_id, normalized_vector).
         """
         fingerprint = self._gallery_fingerprint()
         if self._gallery_cache is not None and fingerprint == self._gallery_cache_fp:
@@ -212,19 +287,30 @@ class RecognitionService:
 
     def _index(self, gallery: list[tuple[str, int, np.ndarray]],
                fingerprint: tuple | None = None):
-        """Índice ANN compartido para la galería actual (o ``None`` para lineal).
+        """Return the shared ANN index for the current gallery, or None for linear.
 
-        ``fingerprint`` evita recalcular la marca de la galería (una consulta
-        SQL ``count/max``) cuando ya se conoce.
+        Args:
+            gallery: Gallery list.
+            fingerprint: Precomputed fingerprint to avoid an extra DB query.
+
+        Returns:
+            BiometricIndex or None.
         """
         return get_shared_index(
             gallery, fingerprint if fingerprint is not None else self._gallery_fingerprint())
 
     def _rank_1n(self, query: np.ndarray, gallery: list[tuple[str, int, np.ndarray]],
                  top_k: int | None = None, fingerprint: tuple | None = None) -> list[MatchCandidate]:
-        """Ranking 1:N con índice ANN cuando aplica; búsqueda lineal exacta como fallback.
+        """Rank 1:N using ANN index when available; exact linear search as fallback.
 
-        ``fingerprint`` se propaga para no consultar la BD por cada rostro.
+        Args:
+            query: Query embedding.
+            gallery: Gallery list.
+            top_k: Maximum results.
+            fingerprint: Gallery fingerprint to avoid re-querying the DB.
+
+        Returns:
+            Ranked candidates.
         """
         index = self._index(gallery, fingerprint)
         if index is not None:
@@ -235,10 +321,25 @@ class RecognitionService:
         self, image_bgr: np.ndarray, top_k: int | None = None,
         log_event: bool = False, usuario: str | None = None,
     ) -> list[MatchCandidate]:
+        """Search for similar persons to a face image.
+
+        Args:
+            image_bgr: Query image in BGR format.
+            top_k: Maximum results to return.
+            log_event: Whether to log a RecognitionEvent.
+            usuario: Acting username.
+
+        Returns:
+            Ranked match candidates.
+
+        Raises:
+            NoFaceDetectedError: If no face is detected.
+            LowQualityFaceError: If the face fails the quality gate.
+        """
         faces = self.engine.analyze(image_bgr)
         face = max(faces, key=_largest_area) if faces else None
         if face is None:
-            raise NoFaceDetectedError("No se detectó ningún rostro en la imagen de búsqueda.")
+            raise NoFaceDetectedError("No face detected in the search image.")
 
         self._quality_valid(image_bgr, face, raise_on_fail=True)
 
@@ -261,7 +362,7 @@ class RecognitionService:
         return results
 
     # ------------------------------------------------------------------ #
-    # Reconocimiento multi-rostro (webcam / video / foto grupal)
+    # Multi-face recognition (webcam / video / group photo)
     # ------------------------------------------------------------------ #
     def recognize_frame(
         self, image_bgr: np.ndarray, person_lookup: dict[str, str] | None = None,
@@ -269,13 +370,21 @@ class RecognitionService:
         log_only_matches: bool = False,
         with_attributes: bool = True,
     ) -> list[RecognizedFace]:
-        """
-        Detecta y reconoce TODOS los rostros de un frame.
-        person_lookup: mapa opcional {uuid: nombre_completo} para no golpear la BD por cada rostro.
-        log_only_matches: cuando True solo se registra el historial para rostros reconocidos
-            (evita inundar la tabla de eventos con 'Desconocido' en webcam/video).
-        with_attributes: si False, omite MediaPipe (ahorra ~30ms por cara en vivo).
-        Los rostros que no superan el gate de calidad no generan match ni evento.
+        """Detect and recognize all faces in a frame.
+
+        Args:
+            image_bgr: Frame in BGR format.
+            person_lookup: Optional map {uuid: full_name} to avoid DB hits.
+            log_event: Whether to persist RecognitionEvent entries.
+            origen: Event origin label.
+            usuario: Acting username.
+            log_only_matches: If True, log only recognized faces (avoid flooding
+                the events table with "Unknown" in webcam/video).
+            with_attributes: If False, skip MediaPipe (saves ~30 ms per face).
+
+        Returns:
+            List of RecognizedFace. Faces failing the quality gate produce no
+            match or event.
         """
         faces = self.engine.analyze(image_bgr)
         gallery = self._load_gallery()
@@ -326,14 +435,23 @@ class RecognitionService:
 
 
 def _low_quality_message(face: FaceResult, quality: QualityScores) -> str:
+    """Build a human-readable low-quality message.
+
+    Args:
+        face: Face result (unused, kept for API symmetry).
+        quality: Quality scores.
+
+    Returns:
+        Descriptive message.
+    """
     reasons = []
     if not quality.size_ok:
-        reasons.append("el rostro es demasiado pequeño")
+        reasons.append("face too small")
     if abs(quality.yaw_deg) > settings.vision.max_yaw_deg:
-        reasons.append(f"girado de perfil ({quality.yaw_deg:.0f}°)")
+        reasons.append(f"profile turn ({quality.yaw_deg:.0f} deg)")
     if abs(quality.pitch_deg) > settings.vision.max_pitch_deg:
-        reasons.append(f"cabeza inclinada verticalmente ({quality.pitch_deg:.0f}°)")
+        reasons.append(f"vertical head tilt ({quality.pitch_deg:.0f} deg)")
     if quality.calidad_global < settings.vision.quality_min_score:
-        reasons.append(f"calidad baja ({quality.calidad_global:.0f}/100)")
-    return ("Rostro con calidad insuficiente: " + ", ".join(reasons or ["desconocida"])
-            + ". Acércate y mejora la iluminación.")
+        reasons.append(f"low quality ({quality.calidad_global:.0f}/100)")
+    return ("Insufficient face quality: " + ", ".join(reasons or ["unknown"])
+            + ". Move closer and improve lighting.")
