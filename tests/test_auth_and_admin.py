@@ -119,7 +119,7 @@ def test_account_locks_after_max_failed_attempts(session, admin_and_operador):
 
     # Aunque ahora se use la contraseña CORRECTA, debe seguir bloqueada.
     # El mensaje es genérico: no revela que la cuenta está bloqueada.
-    with pytest.raises(AuthenticationError, match="Usuario o contraseña incorrectos"):
+    with pytest.raises(AuthenticationError, match="Invalid username or password"):
         auth.authenticate("operador1", "Clave1234")
 
 
@@ -140,7 +140,7 @@ def test_authenticate_inactive_account_raises(session, admin_and_operador):
     AdminService(session).set_user_active(operador.id, False, usuario_actor="admin")
 
     auth = AuthService(session)
-    with pytest.raises(AuthenticationError, match="Usuario o contraseña incorrectos"):
+    with pytest.raises(AuthenticationError, match="Invalid username or password"):
         auth.authenticate("operador1", "Clave1234")
 
 
@@ -658,7 +658,7 @@ def test_configure_totp_wrong_code_raises_and_does_not_enable(session, admin_and
     auth = AuthService(session)
     secret = generate_secret()
 
-    with pytest.raises(AuthenticationError, match="código de verificación"):
+    with pytest.raises(AuthenticationError, match="Verification code"):
         auth.configure_totp(operador, secret, "000000")
 
     session.refresh(operador)
@@ -676,7 +676,7 @@ def test_configure_totp_enables_and_login_requires_code(session, admin_and_opera
     assert operador.totp_enabled is True
 
     # Sin el código, la contraseña sola ya no basta.
-    with pytest.raises(AuthenticationError, match="código de verificación"):
+    with pytest.raises(AuthenticationError, match="Verification code"):
         auth.authenticate("operador1", "Clave1234")
     # Con el código correcto, entra.
     user = auth.authenticate("operador1", "Clave1234", current_code(secret))
@@ -697,7 +697,7 @@ def test_totp_uri_contains_account_and_secret(session, admin_and_operador):
 
 def test_totp_uri_without_secret_raises(session, admin_and_operador):
     _, operador, _ = admin_and_operador
-    with pytest.raises(BioVisionError, match="secreto TOTP"):
+    with pytest.raises(BioVisionError, match="TOTP secret"):
         AuthService(session).totp_uri(operador)
 
 

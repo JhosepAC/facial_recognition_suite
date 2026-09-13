@@ -1,4 +1,4 @@
-"""Temas visuales (QSS) inspirados en herramientas profesionales tipo IDE."""
+"""Visual themes (QSS) inspired by professional IDE-like tools."""
 
 DARK_QSS = """
 QWidget {
@@ -6,9 +6,9 @@ QWidget {
     font-family: 'Segoe UI', 'Inter', sans-serif;
     font-size: 13px;
 }
-/* El fondo NO se aplica al QWidget genérico: eso haría que cada etiqueta o
-   contenedor plano pintara una caja propia (fondo distinto / "subrayado").
-   Solo pintan las superficies estructurales y las tarjetas explícitas. */
+/* Background is NOT applied to the generic QWidget: that would cause every
+   label or plain container to paint its own box (different background /
+   "underline" effect). Only structural surfaces and explicit cards are painted. */
 QMainWindow { background-color: #16171c; }
 QStackedWidget, QStatusBar { background-color: #1e1f26; }
 QDialog, QMessageBox, QMenu, QToolTip { background-color: #1e1f26; color: #e6e6e6; }
@@ -155,8 +155,9 @@ QWidget {
     font-family: 'Segoe UI', 'Inter', sans-serif;
     font-size: 13px;
 }
-/* El fondo NO se aplica al QWidget genérico: eso haría que cada etiqueta o
-   contenedor plano pintara una caja propia (fondo distinto / "subrayado"). */
+/* Background is NOT applied to the generic QWidget: that would cause every
+   label or plain container to paint its own box (different background /
+   "underline" effect). */
 QMainWindow { background-color: #ffffff; }
 QStackedWidget, QStatusBar { background-color: #f5f6f8; }
 QDialog, QMessageBox, QMenu, QToolTip { background-color: #f5f6f8; color: #1d1e24; }
@@ -241,4 +242,12 @@ QProgressBar::chunk {
 
 
 def get_stylesheet(theme: str) -> str:
+    """Return the QSS stylesheet for the given theme.
+
+    Args:
+        theme: Theme name (``"dark"`` or ``"light"``).
+
+    Returns:
+        QSS string for the requested theme.
+    """
     return DARK_QSS if theme == "dark" else LIGHT_QSS

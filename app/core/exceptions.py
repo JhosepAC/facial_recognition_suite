@@ -1,41 +1,41 @@
-"""Excepciones de dominio de FaceScan."""
+"""FaceScan domain exceptions."""
 
 
 class BioVisionError(Exception):
-    """Excepción base de la aplicación."""
+    """Base exception for the application."""
 
 
 class NoFaceDetectedError(BioVisionError):
-    """No se detectó ningún rostro en la imagen/frame procesado."""
+    """No face was detected in the processed image/frame."""
 
 
 class MultipleFacesError(BioVisionError):
-    """Se esperaba un único rostro pero se detectaron varios."""
+    """A single face was expected but multiple faces were detected."""
 
 
 class LowQualityFaceError(BioVisionError):
-    """El rostro detectado no cumple el umbral mínimo de calidad/confianza."""
+    """The detected face does not meet the minimum quality/confidence threshold."""
 
 
 class PersonNotFoundError(BioVisionError):
-    """No existe una persona con el identificador/criterio indicado."""
+    """No person exists for the given identifier/criteria."""
 
 
 class DuplicatePersonError(BioVisionError):
-    """Ya existe una persona con un rostro biométricamente equivalente."""
+    """A person with a biometrically equivalent face already exists."""
 
 
 class AuthenticationError(BioVisionError):
-    """Credenciales inválidas o sesión expirada."""
+    """Invalid credentials or expired session."""
 
 
 class TwoFactorRequiredError(AuthenticationError):
-    """El usuario debe completar la verificación en dos pasos (2FA/TOTP)."""
+    """The user must complete two-factor verification (2FA/TOTP)."""
 
 
 class AuthorizationError(BioVisionError):
-    """El usuario no tiene permisos suficientes para la acción solicitada."""
+    """The user lacks sufficient permissions for the requested action."""
 
 
 class ModelLoadError(BioVisionError):
-    """Error al cargar los modelos de IA (detector / embedder)."""
+    """Failed to load AI models (detector / embedder)."""

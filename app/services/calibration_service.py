@@ -1,20 +1,20 @@
-"""
-Servicio de calibración del análisis facial extendido.
+"""Calibration service for extended facial analysis.
 
-Su objetivo es permitir diagnosticar y ajustar los umbrales heurísticos de
-`app/vision/face_attributes.py` sin re-procesar imágenes por cada intento:
+Its purpose is to allow diagnosing and tuning the heuristic thresholds in
+``app.vision.face_attributes`` without reprocessing images for each attempt:
 
-  - `collect()` reúne, para la foto principal de cada persona, la confianza
-    cruda (0..1 por atributo) ya almacenada en el embedding.
-  - La GUI desliza umbrales y re-clasifica en memoria vía
-    `classify_from_conf` (puro), viendo al instante cuántas personas "cambian".
-  - `apply_thresholds()` persiste los nuevos valores booleanos sobre los
-    embeddings existentes (cala primer/género intactos).
-  - `refresh_*()` vuelve a ejecutar los modelos (InsightFace + MediaPipe)
-    sobre las fotos principales para regenerar confianzas, p. ej. en
-    registros antiguos guardados antes de que existiera el análisis.
+  - ``collect()`` gathers, for each person\'s primary photo, the raw
+    confidence (0..1 per attribute) already stored in the embedding.
+  - The GUI slides thresholds and re-classifies in memory via
+    ``classify_from_conf`` (pure), instantly seeing how many persons change.
+  - ``apply_thresholds()`` persists new boolean values over existing
+    embeddings (leaving age/gender intact).
+  - ``refresh_*()`` re-runs models (InsightFace + MediaPipe) over primary
+    photos to regenerate confidences, e.g., for legacy records saved before
+    analysis existed.
 
-Esta capa NO conoce PySide6; la GUI (Admin → Calibración facial) la invoca.
+This layer does not depend on PySide6; the GUI (Admin -> Facial Calibration)
+invokes it.
 """
 from __future__ import annotations
 
@@ -44,7 +44,7 @@ class CalibrationService:
         self.attributes = FaceAttributeAnalyzer.instance()
 
     # ------------------------------------------------------------------ #
-    # Recopilación de la muestra
+    # Sample collection
     # ------------------------------------------------------------------ #
     def _primary_photo_and_embedding(self, person):
         """Foto principal + embedding asociado (o el primero con atributos)."""
@@ -61,7 +61,7 @@ class CalibrationService:
         return primary, (person.embeddings[0] if person.embeddings else None)
 
     def collect(self, limit: int = 300) -> list[dict]:
-        """Registros de calibración (una entrada por persona, foto principal)."""
+        """Calibration records (one entry per person, primary photo)."""
         persons = (
             self.session.query(Person)
             .order_by(Person.apellidos, Person.nombre)
@@ -83,7 +83,7 @@ class CalibrationService:
         return entries
 
     # ------------------------------------------------------------------ #
-    # Re-clasificación en memoria (cambio de umbrales sin tocar la BD)
+    # In-memory re-classification (threshold change without touching DB)
     # ------------------------------------------------------------------ #
     @staticmethod
     def reclassify(attrs: FaceAttributes | None,
@@ -116,7 +116,7 @@ class CalibrationService:
         return result
 
     # ------------------------------------------------------------------ #
-    # Persistencia de un nuevo set de umbrales sobre los embeddings
+    # Persistence of a new threshold set over embeddings
     # ------------------------------------------------------------------ #
     def apply_thresholds(self, thresholds: dict[str, float]) -> int:
         """Re-clasifica y guarda los booleanos de todos los embeddings con análisis."""
@@ -141,7 +141,7 @@ class CalibrationService:
         return count
 
     # ------------------------------------------------------------------ #
-    # Re-análisis de fotos con los modelos (regenerar confianzas)
+    # Re-analysis of photos with models (regenerate confidences)
     # ------------------------------------------------------------------ #
     def refresh_primary_photo(self, entry: dict) -> FaceAttributes | None:
         """Ejecuta InsightFace + MediaPipe sobre la foto principal de una persona."""

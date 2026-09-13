@@ -44,17 +44,17 @@ def test_policy_requires_min_length():
 
 
 def test_policy_requires_a_letter():
-    with pytest.raises(ValueError, match="letra"):
+    with pytest.raises(ValueError, match="letter"):
         validate_password_policy("12345678")
 
 
 def test_policy_requires_a_number():
-    with pytest.raises(ValueError, match="número"):
+    with pytest.raises(ValueError, match="number"):
         validate_password_policy("abcdefgh")
 
 
 def test_policy_rejects_leading_or_trailing_spaces():
-    with pytest.raises(ValueError, match="espacios"):
+    with pytest.raises(ValueError, match="spaces"):
         validate_password_policy("  Clave123 ")
 
 
@@ -103,7 +103,7 @@ def test_register_user_enforces_password_policy(session, seeded):
 def test_change_own_password_wrong_current_raises(session, seeded):
     admin, _ = seeded
     auth = AuthService(session)
-    with pytest.raises(AuthenticationError, match="actual es incorrecta"):
+    with pytest.raises(AuthenticationError, match="Current password is incorrect"):
         auth.change_own_password(admin.id, "ClaveEquivocada", "NuevaClave456")
 
 
@@ -253,7 +253,7 @@ def test_2fa_failures_count_toward_lockout(session, seeded, monkeypatch):
 
     wrong = "000000" if current_code(secret) != "000000" else "111111"
     for _ in range(settings.security.lockout_attempts):
-        with pytest.raises(AuthenticationError, match="código de verificación"):
+        with pytest.raises(AuthenticationError, match="Verification code"):
             auth.authenticate("admin", "ClaveSegura123", wrong)
 
     session.refresh(user)
