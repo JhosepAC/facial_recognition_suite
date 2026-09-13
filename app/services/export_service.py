@@ -1,8 +1,7 @@
-"""
-Servicio de exportación. Cubre el módulo "Exportaciones" del spec:
-  - CSV, Excel, JSON: personas y eventos de reconocimiento (tabular).
-  - PDF: reporte de estadísticas con KPIs y gráficos.
-  - SQLite: respaldo consistente de la base de datos completa.
+"""Export service. Covers the "Exports" module of the spec:
+  - CSV, Excel, JSON: persons and recognition events (tabular).
+  - PDF: statistics report with KPIs and charts.
+  - SQLite: consistent backup of the entire database.
 """
 from __future__ import annotations
 
@@ -31,7 +30,7 @@ SUPPORTED_TABULAR_FORMATS = ("csv", "excel", "json")
 
 
 def slugify(value: str, default: str = "archivo") -> str:
-    """Convierte texto a un slug seguro para nombres de archivo (sin acentos)."""
+    """Convert text to a safe slug for filenames (without accents)."""
     normalized = unicodedata.normalize("NFKD", value)
     ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
     slug = re.sub(r"[^A-Za-z0-9_-]+", "_", ascii_text).strip("_")
@@ -55,7 +54,7 @@ class ExportService:
         self.session = session
 
     # ------------------------------------------------------------------ #
-    # Dataframes fuente
+    # Source dataframes
     # ------------------------------------------------------------------ #
     def _persons_dataframe(self) -> pd.DataFrame:
         personas = self.session.query(Person).options(
@@ -100,7 +99,7 @@ class ExportService:
         } for e in eventos])
 
     # ------------------------------------------------------------------ #
-    # Exportación tabular genérica
+    # Generic tabular export
     # ------------------------------------------------------------------ #
     @staticmethod
     def _write_dataframe(df: pd.DataFrame, path: str, fmt: str) -> None:
@@ -131,7 +130,7 @@ class ExportService:
         return len(df)
 
     # ------------------------------------------------------------------ #
-    # Reporte PDF de estadísticas (KPIs + gráficos)
+    # PDF statistics report (KPIs + charts)
     # ------------------------------------------------------------------ #
     def export_statistics_pdf(self, path: str, days: int = 30) -> None:
         from reportlab.lib import colors as rl_colors
@@ -201,11 +200,12 @@ class ExportService:
         audit_logger.info("Reporte PDF de estadísticas exportado a {}", Path(path).name)
 
     # ------------------------------------------------------------------ #
-    # Respaldo de base de datos (snapshot SQLite consistente)
+    # Database backup (consistent SQLite snapshot).
     # ------------------------------------------------------------------ #
     def backup_database(self, dest_path: str) -> None:
-        """
-        Usa la API de respaldo nativa de SQLite (Connection.backup) en vez de
+        """Create a consistent database backup using SQLite's native API.
+
+        Uses ``Connection.backup`` instead of
         copiar el archivo con shutil, para garantizar una copia consistente
         incluso si hay escrituras concurrentes en curso.
         """

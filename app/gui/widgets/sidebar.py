@@ -1,7 +1,9 @@
+"""Application sidebar navigation."""
+
 from __future__ import annotations
 
 from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QButtonGroup, QLabel
+from PySide6.QtWidgets import QButtonGroup, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from app import __version__ as APP_VERSION
 from app.gui import icons
@@ -21,14 +23,25 @@ NAV_ITEMS = [
 
 ICON_SIZE = 18
 
-# Acento de la entrada seleccionada: azul limpio (sin componente verde).
+# Accent for the selected entry: clean blue (no green component).
 SELECTED_COLOR = "#3b82f6"
 
 
 class Sidebar(QWidget):
+    """Sidebar with navigation buttons filtered by permissions.
+
+    Signals:
+        navigate: Emitted with the navigation key when a button is clicked.
+    """
+
     navigate = Signal(str)
 
     def __init__(self, parent=None):
+        """Initialize the sidebar.
+
+        Args:
+            parent: Optional parent widget.
+        """
         super().__init__(parent)
         self.setObjectName("Sidebar")
         self.setFixedWidth(220)
@@ -66,26 +79,37 @@ class Sidebar(QWidget):
         self.version.setStyleSheet("color: #6b6e7d; font-size: 11px; padding: 8px;")
         layout.addWidget(self.version)
 
-        # Selecciona Dashboard por defecto
+        # Select Dashboard by default
         self.group.buttons()[0].setChecked(True)
 
         self._retranslate()
         i18n_bus().languageChanged.connect(self._retranslate)
 
     def _retranslate(self, _language: str | None = None) -> None:
+        """Retranslate title, version, and navigation buttons."""
         self.title.setText(tr("sidebar.app_name"))
         self.version.setText(tr("sidebar.version", version=APP_VERSION))
         for key, tr_key, _glyph in NAV_ITEMS:
             self._buttons[key].setText(tr(tr_key))
 
     def _on_button_toggled(self, btn: QPushButton, checked: bool) -> None:
+        """Update the icon color when a button is toggled.
+
+        Args:
+            btn: Button that was toggled.
+            checked: Whether the button is now checked.
+        """
         name = self._icon_by_button.get(btn)
         if name:
             color = SELECTED_COLOR if checked else icons.COLOR_MUTED
             btn.setIcon(icons.icon(name, ICON_SIZE, color))
 
     def set_allowed_keys(self, allowed_keys: set[str]) -> None:
-        """Oculta las entradas de navegación para las que el usuario no tiene permiso."""
+        """Show only navigation entries the user is permitted to see.
+
+        Args:
+            allowed_keys: Set of navigation keys the user may access.
+        """
         first_visible = None
         for key, btn in self._buttons.items():
             visible = key in allowed_keys

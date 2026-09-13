@@ -1,13 +1,12 @@
-"""
-Servicio de autenticación (bounded context: AUTH). Cubre:
-  - autenticación (login)
-  - hash de contraseñas (bcrypt)
-  - bloqueo automático por intentos fallidos
-  - política de contraseñas
-  - auto-registro o "crear cuenta" desde la pantalla de inicio de sesión
-  - cambio de contraseña (con verificación de la contraseña actual)
-  - permisos por usuario (a través de Role.permisos_csv), que determinan
-    qué módulos del dashboard quedan visibles/bloqueados.
+"""Authentication service (bounded context: AUTH). Covers:
+  - authentication (login)
+  - password hashing (bcrypt)
+  - automatic lockout after failed attempts
+  - password policy
+  - self-registration ("create account" from the login screen)
+  - password change (with current password verification)
+  - per-user permissions (via Role.permisos_csv), which determine which
+    dashboard modules are visible/blocked.
 """
 from __future__ import annotations
 
@@ -31,9 +30,9 @@ from app.database.models import AuditLog, RememberedSession, Role, User
 from app.database.repositories.user_repository import RoleRepository, UserRepository
 
 
-# Mensaje único para todos los fallos de credenciales: no filtra si el
-# usuario existe, está bloqueado o desactivado (evita enumeración de cuentas).
-_INVALID_CREDENTIALS_MSG = "Usuario o contraseña incorrectos."
+# Single message for all credential failures: does not reveal whether
+# the user exists, is locked, or disabled (prevents account enumeration).
+_INVALID_CREDENTIALS_MSG = "Invalid username or password."
 
 
 def hash_password(password: str) -> str:
@@ -47,23 +46,23 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
-# Hash "trampa" precomputado: consumir un tiempo comparable al de una
-# verificación real en todas las rutas de rechazo del login (evita el oráculo
-# de timing: cuentas inexistentes, bloqueadas o desactivadas responden igual).
-_DUMMY_HASH = hash_password("clave-trampa-invalida")
+# Precomputed dummy hash: consume time comparable to a real
+# verification on all login rejection paths (avoids timing oracle:
+# non-existent, locked, or disabled accounts respond identically).
+_DUMMY_HASH = hash_password("invalid-trap-password")
 
 
 def validate_password_policy(password: str) -> None:
-    """Valida la política de contraseñas: longitud mínima + letras + números."""
+    """Validate password policy: minimum length + letters + numbers."""
     min_len = settings.security.min_password_length
     if len(password) < min_len:
-        raise ValueError(f"La contraseña debe tener al menos {min_len} caracteres.")
+        raise ValueError(f"Password must be at least {min_len} characters.")
     if not any(c.isalpha() for c in password):
-        raise ValueError("La contraseña debe incluir al menos una letra.")
+        raise ValueError("Password must include at least one letter.")
     if not any(c.isdigit() for c in password):
-        raise ValueError("La contraseña debe incluir al menos un número.")
+        raise ValueError("Password must include at least one number.")
     if password != password.strip():
-        raise ValueError("La contraseña no debe contener espacios al inicio o al final.")
+        raise ValueError("Password must not contain leading or trailing spaces.")
 
 
 class AuthService:
@@ -73,7 +72,7 @@ class AuthService:
         self.roles = RoleRepository(session)
 
     # ------------------------------------------------------------------ #
-    # Auditoría en base de datos (visible en la pestaña Auditoría)
+    # Database audit (visible in the Audit tab)
     # ------------------------------------------------------------------ #
     def _add_audit(self, accion: str, usuario: str | None, detalle: str | None = None) -> None:
         self.session.add(AuditLog(usuario=usuario, accion=accion, detalle=detalle))
@@ -90,15 +89,15 @@ class AuthService:
             time.sleep(ms / 1000.0)
 
     # ------------------------------------------------------------------ #
-    # Autenticación
+    # Authentication
     # ------------------------------------------------------------------ #
     def authenticate(self, username: str, password: str, totp_code: str | None = None) -> User:
         username = self._normalize_username(username)
         user = self.repo.get_by_username(username)
 
         if user is None:
-            # Consumir el mismo tiempo que una verificación de hash real para
-            # no filar si el usuario existe o no (evita enumeración de usuarios).
+            # Consume the same time as a real hash verification to
+            # avoid revealing whether the user exists (prevents enumeration).
             verify_password(password, _DUMMY_HASH)
             self._login_throttle()
             audit_logger.info("Login fallido (usuario inexistente) | username={}", username)
@@ -134,11 +133,11 @@ class AuthService:
             )
             raise AuthenticationError(_INVALID_CREDENTIALS_MSG)
 
-        # Segundo factor (TOTP): la contraseña ya es válida, ahora el código.
+        # Second factor (TOTP): password is already valid, now the code.
         if user.totp_enabled:
             if not self._verify_totp(user, totp_code):
-                # Los fallos de 2FA cuentan para el bloqueo de cuenta (misma
-                # política que la contraseña): evita el brute-force de códigos.
+                # 2FA failures count toward account lockout (same
+                # policy as password): prevents code brute-force.
                 user.intentos_fallidos += 1
                 intentos = user.intentos_fallidos
                 if intentos >= settings.security.lockout_attempts:
@@ -152,9 +151,9 @@ class AuthService:
                     "Login fallido (2FA incorrecto) | username={} | intentos={}",
                     username, intentos,
                 )
-                raise AuthenticationError("El código de verificación es incorrecto.")
+                raise AuthenticationError("Verification code is incorrect.")
 
-        # Autenticación exitosa: resetear contador de intentos y bloqueo.
+        # Authentication exitosa: resetear contador de intentos y bloqueo.
         user.intentos_fallidos = 0
         user.bloqueado_hasta = None
         user.ultimo_login = datetime.utcnow()
@@ -164,16 +163,16 @@ class AuthService:
         return user
 
     # ------------------------------------------------------------------ #
-    # Creación de cuenta (auto-registro desde la pantalla de login)
+    # Account creation (self-registration from the login screen)
     # ------------------------------------------------------------------ #
     def register_user(self, username: str, password: str,
                       nombre_completo: str | None = None) -> User:
+        """Register a new account with the default configured role.
+
+        Uses ``settings.security.default_registration_role``. Allows the user
+        to create their own account if the administrator has it enabled.
         """
-        Registro de una cuenta nueva con el rol por defecto configurado
-        (settings.security.default_registration_role). Permite al usuario
-        crear su propia cuenta si el administrador lo tiene habilitado.
-        """
-        self._login_throttle()  # limita la creación masiva de cuentas
+        self._login_throttle()  # Throttle mass account creation.
         if not settings.security.allow_self_registration:
             raise BioVisionError(
                 "El registro de nuevas cuentas está deshabilitado por el administrador."
@@ -202,7 +201,7 @@ class AuthService:
         nombre = settings.security.default_registration_role.strip() or "Operador"
         role = self.roles.get_by_name(nombre)
         if role is None:
-            # Si el rol configurado ya no existe, se re-siembra o se usa Operador.
+            # If the configured role no longer exists, re-seed or use Operador.
             role = self.roles.get_by_name("Operador")
         if role is None:
             from app.core.permissions import DEFAULT_ROLES, permissions_to_csv
@@ -215,10 +214,10 @@ class AuthService:
         return role
 
     # ------------------------------------------------------------------ #
-    # Contraseñas
+    # Passwords
     # ------------------------------------------------------------------ #
     def change_own_password(self, user_id: int, current_password: str, new_password: str) -> None:
-        """Cambia la contraseña del usuario autenticado verificando la actual."""
+        """Change the authenticated user's password, verifying the current one."""
         user = self.repo.get(user_id)
         if user is None:
             raise AuthenticationError("Usuario no encontrado.")
@@ -226,7 +225,7 @@ class AuthService:
         if not verify_password(current_password, user.password_hash):
             audit_logger.info("Cambio de contraseña rechazado (clave actual incorrecta) | username={}",
                                user.username)
-            raise AuthenticationError("La contraseña actual es incorrecta.")
+            raise AuthenticationError("Current password is incorrect.")
 
         validate_password_policy(new_password)
         user.password_hash = hash_password(new_password)
@@ -245,13 +244,13 @@ class AuthService:
         audit_logger.info("Contraseña actualizada | username={}", user.username)
 
     # ------------------------------------------------------------------ #
-    # Segundo factor (2FA / TOTP)
+    # Second factor (2FA / TOTP)
     # ------------------------------------------------------------------ #
     def is_totp_enabled(self, user: User) -> bool:
         return bool(user.totp_enabled)
 
     def generate_totp_secret(self) -> str:
-        """Genera un secreto TOTP nuevo (base32) SIN persistirlo."""
+        """Generate a new TOTP secret (base32) without persisting it."""
         return generate_secret()
 
     def configure_totp(self, user: User, secret: str, confirmation_code: str) -> None:
@@ -262,7 +261,7 @@ class AuthService:
         autenticadora introduciendo el código actual, se persiste y se habilita.
         """
         if not verify_code(secret, confirmation_code):
-            raise AuthenticationError("El código de verificación es incorrecto.")
+            raise AuthenticationError("Verification code is incorrect.")
 
         user.totp_secret = encrypt_value(secret)
         user.totp_enabled = True
@@ -281,7 +280,7 @@ class AuthService:
         """URI otpauth para emparejar una app autenticadora."""
         if secret is None:
             if not user.totp_secret:
-                raise BioVisionError("El usuario no tiene un secreto TOTP configurado.")
+                raise BioVisionError("User has no TOTP secret configured.")
             secret = decrypt_value(user.totp_secret)
         return otpauth_uri(secret, user.username)
 
@@ -295,7 +294,7 @@ class AuthService:
         return verify_code(secret, code or "")
 
     # ------------------------------------------------------------------ #
-    # Permisos / bloqueo de módulos
+    # Permissions / module gating
     # ------------------------------------------------------------------ #
     def has_permission(self, user: User | None, permission: str) -> bool:
         if user is None or user.role is None:
@@ -311,7 +310,7 @@ class AuthService:
             )
 
     # ------------------------------------------------------------------ #
-    # Sesión recordada (token efímero; nunca se persiste la contraseña)
+    # Remembered session (ephemeral token; password is never persisted)
     # ------------------------------------------------------------------ #
     def create_remembered_token(self, user: User) -> str:
         """Crea un token de 'recordar sesión' y devuelve el token crudo (única vez).
@@ -339,12 +338,12 @@ class AuthService:
         self.session.commit()
 
     def authenticate_remembered_token(self, token: str) -> User | None:
-        """Autentica mediante el token de 'recordar sesión'.
+        """Authenticate via the 'remember me' token.
 
-        Devuelve ``None`` si el token no existe, está vencido, pertenece a una
-        cuenta desactivada o bloqueada. Si el usuario tiene 2FA habilitado
-        levanta ``TwoFactorRequiredError`` (el auto-login no debe saltarse el
-        segundo factor) sin descartar el token.
+        Returns ``None`` if the token does not exist, is expired, belongs to a
+        deactivated or locked account. If the user has 2FA enabled, raises
+        ``TwoFactorRequiredError`` (auto-login must not bypass the second
+        factor) without discarding the token.
         """
         if not token:
             return None

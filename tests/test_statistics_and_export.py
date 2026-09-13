@@ -1,6 +1,4 @@
-"""
-Tests del módulo de Estadísticas y Exportación (Fase 3).
-"""
+"""Tests for the Statistics and Export module (Phase 3)."""
 import json
 import sqlite3
 from datetime import datetime, timedelta
@@ -34,7 +32,7 @@ def session(tmp_path):
 
 @pytest.fixture()
 def populated_session(session):
-    """Sesión con personas y eventos de reconocimiento de ejemplo."""
+    """Session with sample persons and recognition events."""
     repo = PersonRepository(session)
     p1 = repo.add(Person(nombre="Ana", apellidos="Gomez", empresa="ACME", departamento="IT"))
     p2 = repo.add(Person(nombre="Luis", apellidos="Ruiz", empresa="ACME", departamento="Ventas"))
@@ -56,7 +54,7 @@ def populated_session(session):
 
 
 # ------------------------------------------------------------------ #
-# Fase 5 (M9/T1): WAL y respaldo consistente en ese modo
+# Phase 5 (M9/T1): WAL and consistent backup in that mode
 # ------------------------------------------------------------------ #
 def test_wal_mode_is_applied(tmp_path):
     from sqlalchemy import create_engine
@@ -116,10 +114,10 @@ def test_summary_counts(populated_session):
     assert summary["eventos_match"] == 3
     assert summary["tasa_reconocimiento_pct"] == pytest.approx(75.0)
     assert summary["confianza_promedio"] is not None
-    # M8: extremos de confianza por agregados SQL (matchs: 92.0, 81.0, 77.5)
+    # M8: confidence extremes via SQL aggregates (matches: 92.0, 81.0, 77.5)
     assert summary["confianza_minima"] == pytest.approx(77.5)
     assert summary["confianza_maxima"] == pytest.approx(92.0)
-    # M5: tasa desglosada por origen (webcam 1/2=50%, video e imagen 100%)
+    # M5: rate broken down by origin (webcam 1/2=50%, video and imagen 100%)
     por_origen = summary["tasa_reconocimiento_por_origen"]
     assert por_origen["webcam"] == {"eventos": 2, "match": 1, "tasa": pytest.approx(50.0)}
     assert por_origen["video"] == {"eventos": 1, "match": 1, "tasa": 100.0}
@@ -131,7 +129,7 @@ def test_build_export_name_is_unique():
 
     first = build_export_name("personas", "csv")
     second = build_export_name("personas", "csv")
-    assert first != second  # B2: dos exportaciones el mismo segundo no colisionan
+    assert first != second  # B2: two exports in the same second must not collide
 
 
 def test_summary_counts_empty_db(session):
@@ -166,12 +164,12 @@ def test_recognitions_by_origin(populated_session):
 def test_confidence_values_only_matches(populated_session):
     session, _ = populated_session
     values = StatisticsService(session).confidence_values(only_matches=True)
-    assert len(values) == 3  # excluye el evento sin persona_uuid
+    assert len(values) == 3  # excludes the event without person_uuid
     assert all(v > 0 for v in values)
 
 
 def test_charts_render_without_error(populated_session):
-    """No valida el contenido visual, solo que cada gráfico se construye sin excepciones."""
+    """Only checks that each chart is built without raising; does not validate visuals."""
     import matplotlib.pyplot as plt
 
     session, _ = populated_session
@@ -192,7 +190,7 @@ def test_charts_render_without_error(populated_session):
 
 
 def test_charts_render_on_empty_db(session):
-    """Los gráficos deben degradarse con gracia (mensaje 'sin datos'), no fallar, en BD vacía."""
+    """Charts must degrade gracefully (\"no data\" message) on an empty DB, not fail."""
     import matplotlib.pyplot as plt
 
     stats = StatisticsService(session)
@@ -209,11 +207,11 @@ def test_charts_render_on_empty_db(session):
 
 
 # ------------------------------------------------------------------ #
-# Análisis facial extendido (distribución y utilidades puras)
+# Extended facial analysis (distribution and pure utilities)
 # ------------------------------------------------------------------ #
 @pytest.fixture()
 def attr_session(session):
-    """Personas con foto principal y embedding con atributos faciales."""
+    """Persons with a primary photo and embedding with facial attributes."""
     repo = PersonRepository(session)
     p1 = repo.add(Person(nombre="Ana", apellidos="Gomez"))
     p2 = repo.add(Person(nombre="Luis", apellidos="Ruiz"))
@@ -288,7 +286,7 @@ def test_diff_attribute_fields_helper():
 
 
 # ------------------------------------------------------------------ #
-# Búsqueda por atributo facial (PersonService.search)
+# Search by facial attribute (PersonService.search)
 # ------------------------------------------------------------------ #
 def test_search_by_attribute_present(attr_session):
     session, (p1, p2) = attr_session
@@ -310,7 +308,7 @@ def test_search_by_attribute_combined(attr_session):
     result = PersonService(session).search(
         "", attrs=["gafas"], excl_attrs=["barba"])
     assert [p.uuid for p in result] == [p1.uuid]
-    # "sin gafas" deja fuera a Ana (que las lleva) y queda solo Luis
+    # "without glasses" excludes Ana (who wears them), leaving only Luis
     assert [p.uuid for p in PersonService(session).search(
         "", excl_attrs=["gafas"])] == [p2.uuid]
 
@@ -319,7 +317,7 @@ def test_search_by_attribute_without_analysis_excluded(session):
     repo = PersonRepository(session)
     repo.add(Person(nombre="Sin", apellidos="Datos"))
     session.commit()
-    # Nadie tiene análisis facial -> el filtro por ausencia no debe devolver a nadie
+    # No one has facial analysis -> absence filter must return no one
     assert PersonService(session).search("", excl_attrs=["barba"]) == []
 
 
@@ -388,7 +386,7 @@ def test_export_statistics_pdf(populated_session, tmp_path):
 
 
 def test_export_statistics_pdf_empty_db(session, tmp_path):
-    """El reporte debe generarse igual (con gráficos vacíos) aunque no haya datos."""
+    """Report must still be generated (with empty charts) even when there is no data."""
     path = str(tmp_path / "reporte_vacio.pdf")
     ExportService(session).export_statistics_pdf(path, days=30)
     with open(path, "rb") as f:
@@ -396,12 +394,12 @@ def test_export_statistics_pdf_empty_db(session, tmp_path):
 
 
 # ------------------------------------------------------------------ #
-# ExportService — respaldo SQLite
+# ExportService — SQLite backup
 # ------------------------------------------------------------------ #
 def test_backup_database(populated_session, tmp_path, monkeypatch):
     session, _ = populated_session
 
-    # Aísla el respaldo de la BD real de la app: crea una BD "de producción" de prueba
+    # Isolate the backup from the real app DB: create a throwaway "production" DB
     source_db = tmp_path / "source.db"
     from sqlalchemy import create_engine
     engine = create_engine(f"sqlite:///{source_db}")

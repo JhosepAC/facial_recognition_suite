@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Especificación de PyInstaller para FaceScan (modo onedir).
+# PyInstaller spec for FaceScan (onedir mode).
 from pathlib import Path
 
 from PyInstaller.utils.hooks import (
@@ -18,7 +18,7 @@ datas = [
 binaries = []
 hiddenimports = []
 
-# insightface, faiss y onnxruntime: se recogen íntegros
+# insightface, faiss, and onnxruntime: collect entire packages.
 for _pkg in ("insightface", "faiss", "onnxruntime"):
     _datas, _binaries, _hidden = collect_all(_pkg)
     datas += _datas
@@ -27,7 +27,7 @@ for _pkg in ("insightface", "faiss", "onnxruntime"):
 
 hiddenimports += ["onnx", "onnxruntime.capi.onnxruntime_pybind11_state"]
 
-# skimage (requerido por InsightFace para alineación de rostros)
+# scikit-image (required by InsightFace for face alignment).
 hiddenimports += collect_submodules("skimage")
 
 _mp_hidden = []
@@ -78,7 +78,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    # SE REMOVIÓ "skimage" DE EXCLUDES:
+    # Note: scikit-image was removed from excludes (required at runtime).
     excludes=[
         "tkinter", "test", "tests", "pytest",
         "sentencepiece", "jax", "jaxlib", "torch", "sympy", "mpmath",

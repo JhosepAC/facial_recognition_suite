@@ -1,7 +1,7 @@
 """
-Tests del bounded context AUTH ampliado (auto-registro, política de
-contraseñas, cambio de contraseña propia) y de las guardas anti-lockout
-del bounded context ADMIN.
+Tests for the extended AUTH bounded context (self-registration, password
+policy, own password change) and for the anti-lockout guards in the ADMIN
+bounded context.
 """
 import pytest
 
@@ -36,7 +36,7 @@ def seeded(session):
 
 
 # ------------------------------------------------------------------ #
-# Política de contraseñas
+# Password policy
 # ------------------------------------------------------------------ #
 def test_policy_requires_min_length():
     with pytest.raises(ValueError):
@@ -44,17 +44,17 @@ def test_policy_requires_min_length():
 
 
 def test_policy_requires_a_letter():
-    with pytest.raises(ValueError, match="letra"):
+    with pytest.raises(ValueError, match="letter"):
         validate_password_policy("12345678")
 
 
 def test_policy_requires_a_number():
-    with pytest.raises(ValueError, match="número"):
+    with pytest.raises(ValueError, match="number"):
         validate_password_policy("abcdefgh")
 
 
 def test_policy_rejects_leading_or_trailing_spaces():
-    with pytest.raises(ValueError, match="espacios"):
+    with pytest.raises(ValueError, match="spaces"):
         validate_password_policy("  Clave123 ")
 
 
@@ -63,7 +63,7 @@ def test_policy_accepts_valid_combination():
 
 
 # ------------------------------------------------------------------ #
-# Auto-registro de cuentas
+# Self-registration
 # ------------------------------------------------------------------ #
 def test_register_user_creates_account_with_default_role(session, seeded):
     user = AuthService(session).register_user("nuevo", "MiClave123", "Nuevo Usuario")
@@ -98,12 +98,12 @@ def test_register_user_enforces_password_policy(session, seeded):
 
 
 # ------------------------------------------------------------------ #
-# Cambio de contraseña propia
+# Own password change
 # ------------------------------------------------------------------ #
 def test_change_own_password_wrong_current_raises(session, seeded):
     admin, _ = seeded
     auth = AuthService(session)
-    with pytest.raises(AuthenticationError, match="actual es incorrecta"):
+    with pytest.raises(AuthenticationError, match="Current password is incorrect"):
         auth.change_own_password(admin.id, "ClaveEquivocada", "NuevaClave456")
 
 
@@ -112,7 +112,7 @@ def test_change_own_password_success(session, seeded):
     auth = AuthService(session)
     auth.change_own_password(admin.id, "ClaveSegura123", "NuevaClave456")
 
-    # La clave nueva funciona; la antigua no.
+    # New password works; old one does not.
     assert verify_password("NuevaClave456", admin.password_hash) is True
     with pytest.raises(AuthenticationError):
         auth.authenticate("admin", "ClaveSegura123")
@@ -120,7 +120,7 @@ def test_change_own_password_success(session, seeded):
 
 
 # ------------------------------------------------------------------ #
-# Guardas anti-lockout: nunca quedar sin administrador activo
+# Anti-lockout guards: never leave the system without an active admin
 # ------------------------------------------------------------------ #
 def test_cannot_deactivate_last_active_admin(session, seeded):
     admin, _ = seeded
@@ -154,14 +154,14 @@ def test_can_deactivate_admin_if_another_active_admin_exists(session, seeded):
 
 
 def test_no_register_until_admin_seeded(session):
-    # Sin usuarios ni roles sembrados, el auto-registro no encuentra rol
-    # por defecto y usa el rol "Operador" sembrado dinámicamente.
+    # Without seeded users/roles, self-registration cannot find a default role
+    # and uses the dynamically seeded "Operador" role.
     user = AuthService(session).register_user("primero", "MiClave123")
     assert user.role.nombre in {"Operador"}
 
 
 # ------------------------------------------------------------------ #
-# Fase 4 (A1/M7): rate limiting y uniformización de tiempos en login
+# Phase 4 (A1/M7): rate limiting and timing uniformization on login
 # ------------------------------------------------------------------ #
 def _capture_sleep(monkeypatch):
     from app.services import auth_service
@@ -200,8 +200,8 @@ def test_register_user_is_throttled(session, seeded, monkeypatch):
 
 
 def test_blocked_and_inactive_accounts_run_dummy_verify(session, seeded, monkeypatch):
-    # M7: cuentas bloqueadas/desactivadas NO deben retornar de inmediato;
-    # deben consumir una verificación "trampa" para no filtrar su estado.
+    # M7: blocked/disabled accounts must not return immediately;
+    # they must consume a dummy verification to avoid leaking state.
     from datetime import datetime, timedelta
 
     from app.core.config import settings
@@ -223,9 +223,9 @@ def test_blocked_and_inactive_accounts_run_dummy_verify(session, seeded, monkeyp
     monkeypatch.setattr(auth_service, "verify_password", spy)
     with pytest.raises(AuthenticationError):
         auth.authenticate("admin", "ClaveSegura123")
-    assert len(verify_calls) == 1  # solo la verificación "trampa" (cuenta bloqueada)
+    assert len(verify_calls) == 1  # only the dummy verification (blocked account)
 
-    # Mismo caso con cuenta desactivada.
+    # Same case with a disabled account.
     user2 = session.query(auth_service.User).filter_by(username="admin").one()
     user2.bloqueado_hasta = None
     user2.activo = False
@@ -237,7 +237,7 @@ def test_blocked_and_inactive_accounts_run_dummy_verify(session, seeded, monkeyp
 
 
 # ------------------------------------------------------------------ #
-# Fase 4 (M3): los fallos de 2FA cuentan para el bloqueo de cuenta
+# Phase 4 (M3): 2FA failures count toward account lockout
 # ------------------------------------------------------------------ #
 def test_2fa_failures_count_toward_lockout(session, seeded, monkeypatch):
     from app.core.config import settings
@@ -253,14 +253,14 @@ def test_2fa_failures_count_toward_lockout(session, seeded, monkeypatch):
 
     wrong = "000000" if current_code(secret) != "000000" else "111111"
     for _ in range(settings.security.lockout_attempts):
-        with pytest.raises(AuthenticationError, match="código de verificación"):
+        with pytest.raises(AuthenticationError, match="Verification code"):
             auth.authenticate("admin", "ClaveSegura123", wrong)
 
     session.refresh(user)
     assert user.intentos_fallidos == settings.security.lockout_attempts
     assert user.bloqueado_hasta is not None
 
-    # Ya bloqueada: aunque el código fuese correcto, el login se rechaza.
+    # Now locked: even with the correct code, login is rejected.
     with pytest.raises(AuthenticationError):
         auth.authenticate("admin", "ClaveSegura123", current_code(secret))
 

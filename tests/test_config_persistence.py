@@ -1,9 +1,9 @@
 """
-Tests de la capa de configuración persistente (Fase 6).
+Tests for the persistent configuration layer (Phase 6).
 
-- M16: `save_setting` persiste en settings.yaml preservando comentarios.
-- B7: `_build_settings` tolera claves desconocidas/mal escritas en el YAML
-  (antes un typo en settings.yaml tiraba la aplicación al importar).
+- M16: ``save_setting`` persists to settings.yaml while preserving comments.
+- B7: ``_build_settings`` tolerates unknown/misspelled keys in the YAML
+  (previously a typo in settings.yaml crashed the app on import).
 """
 import pytest
 
@@ -19,7 +19,7 @@ from app.core.config import (
 
 
 # ------------------------------------------------------------------ #
-# B7: carga tolerante de settings.yaml
+# B7: tolerant loading of settings.yaml
 # ------------------------------------------------------------------ #
 def test_known_fields_filters_unknown_keys():
     data = {"lockout_attemps": 3, "lockout_attempts": 5, "foo": "x"}
@@ -34,21 +34,21 @@ def test_build_settings_ignores_unknown_section_keys():
         "unknown_section": {"algo": 1},
     }
     s = _build_settings(raw)
-    assert s.app.version == APP_VERSION  # única fuente de verdad
+    assert s.app.version == APP_VERSION  # single source of truth
     assert s.app.theme == "dark"
     assert s.security.lockout_attempts == 7
-    assert s.security.lockout_minutes == 15  # por defecto
+    assert s.security.lockout_minutes == 15  # default
 
 
 def test_build_settings_does_not_crash_on_typo():
-    # Antes: SecuritySettings(**{'lockout_attemps': 3}) -> TypeError en el import.
+    # Before: SecuritySettings(**{'lockout_attemps': 3}) -> TypeError on import.
     s = _build_settings({"security": {"lockout_attemps": 3}})
     assert isinstance(s, Settings)
     assert s.security.lockout_attempts == 5
 
 
 # ------------------------------------------------------------------ #
-# M16: persistencia de ajustes con preservación de comentarios
+# M16: settings persistence with comment preservation
 # ------------------------------------------------------------------ #
 @pytest.fixture()
 def temp_config(tmp_path, monkeypatch):
@@ -90,12 +90,12 @@ def test_save_setting_updates_runtime_and_is_restored_next_load(temp_config):
 
 
 def test_save_setting_rejects_non_editable_key(temp_config):
-    with pytest.raises(ValueError, match="no editable"):
+    with pytest.raises(ValueError, match=r"not editable"):
         save_setting("security", "lockout_attempts", 3)
 
 
 def settings_recognition_match_threshold(value=None):
-    """Getter/setter del singleton para no ensuciar otros tests."""
+    """Getter/setter for the singleton to avoid polluting other tests."""
     if value is None:
         return config_module.settings.recognition.match_threshold
     config_module.settings.recognition.match_threshold = value

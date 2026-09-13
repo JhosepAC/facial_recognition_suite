@@ -1,6 +1,8 @@
+"""Declarative base for all ORM models."""
+
 from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
-    """Base declarativa compartida por todos los modelos ORM."""
+    """Shared declarative base for all ORM models."""
     pass
