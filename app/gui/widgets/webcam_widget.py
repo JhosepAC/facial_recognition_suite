@@ -351,13 +351,13 @@ class WebcamWidget(QWidget):
 
         # Header
         header = QHBoxLayout()
-        header.addWidget(icons.icon_label("videocam", 22, "#6fa8ff"))
+        header.addWidget(icons.icon_label("videocam", 22, "#65dca5"))
         title_col = QVBoxLayout()
         title_col.setSpacing(0)
         self._title = QLabel(tr("webcam.title"))
         self._title.setStyleSheet("font-size: 22px; font-weight: 700;")
         self._subtitle = QLabel(tr("webcam.subtitle"))
-        self._subtitle.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self._subtitle.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         title_col.addWidget(self._title)
         title_col.addWidget(self._subtitle)
         header.addLayout(title_col)
@@ -384,7 +384,7 @@ class WebcamWidget(QWidget):
 
         self.stop_btn = QPushButton(tr("webcam.stop"))
         self.stop_btn.setObjectName("SecondaryButton")
-        self.stop_btn.setIcon(icons.icon("stop", 16, "#b7b9c4"))
+        self.stop_btn.setIcon(icons.icon("stop", 16, "#b4b4b4"))
         self.stop_btn.clicked.connect(self._stop)
         self.stop_btn.setEnabled(False)
         controls_row.addWidget(self.stop_btn)
@@ -400,9 +400,9 @@ class WebcamWidget(QWidget):
         # Session metrics
         chips_row = QHBoxLayout()
         chips_row.setSpacing(10)
-        self.chip_fps = MetricChip("videocam", "—", tr("webcam.fps"), "#6fa8ff")
+        self.chip_fps = MetricChip("videocam", "—", tr("webcam.fps"), "#65dca5")
         self.chip_rostros = MetricChip("people", "—", tr("webcam.faces_screen"), "#f2b134")
-        self.chip_matches = MetricChip("check_circle", "0", tr("webcam.matches_label"), "#2ecc71")
+        self.chip_matches = MetricChip("check_circle", "0", tr("webcam.matches_label"), "#3ecf8e")
         self.chip_time = MetricChip("schedule", "00:00", tr("webcam.session_time"))
         for chip in (self.chip_fps, self.chip_rostros, self.chip_matches, self.chip_time):
             chips_row.addWidget(chip)
@@ -411,25 +411,29 @@ class WebcamWidget(QWidget):
 
         # Splitter: video | session panel
         splitter = QSplitter(Qt.Horizontal)
+        splitter.setProperty("stackBelowWidth", 900)
+        splitter.setChildrenCollapsible(False)
+        splitter.setHandleWidth(12)
 
         video_frame = QFrame()
         video_frame.setObjectName("Card")
         video_layout = QVBoxLayout(video_frame)
         video_layout.setContentsMargins(10, 10, 10, 10)
         self.video_label = AspectFrameLabel(
-            icons.status_html("videocam", tr("webcam.camera_stopped"), "#8f92a3", 18))
+            icons.status_html("videocam", tr("webcam.camera_stopped"), "#a3a3a3", 18))
         self.video_label.setAlignment(Qt.AlignCenter)
         self.video_label.setMinimumSize(480, 270)
         self.video_label.setMaximumSize(1280, 720)
         self.video_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.video_label.setStyleSheet(
-            "color: #8f92a3; background-color: #16171c;"
-            "border: 1px solid #2a2b33; border-radius: 8px;"
+            "color: #a3a3a3; background-color: #141414;"
+            "border: 1px solid #303030; border-radius: 8px;"
         )
         video_layout.addWidget(self.video_label, 1)
         splitter.addWidget(video_frame)
 
         session_frame = QFrame()
+        session_frame.setMinimumWidth(340)
         session_frame.setObjectName("Card")
         session_layout = QVBoxLayout(session_frame)
         session_layout.setContentsMargins(14, 14, 14, 14)
@@ -461,20 +465,22 @@ class WebcamWidget(QWidget):
         self.persons_layout.setContentsMargins(0, 0, 0, 0)
         self.persons_layout.setSpacing(8)
         self._persons_empty = QLabel(tr("webcam.no_persons_seen"))
-        self._persons_empty.setStyleSheet("color: #8f92a3; padding: 6px;")
+        self._persons_empty.setStyleSheet("color: #a3a3a3; padding: 6px;")
         self._persons_empty.setWordWrap(True)
         self.persons_layout.addWidget(self._persons_empty)
         self.persons_scroll.setWidget(persons_host)
         session_layout.addWidget(self.persons_scroll, stretch=1)
 
         self._events_title = QLabel(tr("webcam.recent"))
-        self._events_title.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self._events_title.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         session_layout.addWidget(self._events_title)
 
         self.events_table = QTableWidget(0, 3)
         self.events_table.setHorizontalHeaderLabels(
             [tr("webcam.event_time"), tr("webcam.event_name"), tr("webcam.event_confidence")])
         self.events_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.events_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.events_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
         self.events_table.verticalHeader().setVisible(False)
         self.events_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.events_table.setMaximumHeight(220)
@@ -483,13 +489,14 @@ class WebcamWidget(QWidget):
         splitter.addWidget(session_frame)
         splitter.setStretchFactor(0, 4)
         splitter.setStretchFactor(1, 3)
+        splitter.setSizes([700, 350])
         splitter.setStyleSheet(
             "QSplitter::handle { background-color: transparent; border: none; }")
         root.addWidget(splitter, stretch=1)
 
         self._note = QLabel(tr("webcam.legal_note"))
         self._note.setWordWrap(True)
-        self._note.setStyleSheet("color: #6b6e7d; font-size: 11px;")
+        self._note.setStyleSheet("color: #949494; font-size: 11px;")
         root.addWidget(self._note)
 
         self._session_timer = QTimer(self)
@@ -572,7 +579,7 @@ class WebcamWidget(QWidget):
         self.camera_combo.setEnabled(True)
         self.status_label.setText(tr("webcam.camera_stopped"))
         self.video_label.setText(icons.status_html(
-            "videocam", tr("webcam.camera_stopped"), "#8f92a3", 18))
+            "videocam", tr("webcam.camera_stopped"), "#a3a3a3", 18))
         self.video_label.setPixmap(QPixmap())
         self._reset_session_metrics()
 
@@ -641,7 +648,7 @@ class WebcamWidget(QWidget):
             if not getattr(self, "_persons_empty", None):
                 self._persons_empty = QLabel(
                     tr("webcam.no_persons_seen"))
-                self._persons_empty.setStyleSheet("color: #8f92a3; padding: 6px;")
+                self._persons_empty.setStyleSheet("color: #a3a3a3; padding: 6px;")
                 self.persons_layout.addWidget(self._persons_empty)
         else:
             if getattr(self, "_persons_empty", None) is not None:
@@ -657,7 +664,7 @@ class WebcamWidget(QWidget):
         self.events_table.insertRow(0)
         self.events_table.setItem(0, 0, QTableWidgetItem(hora))
         item_persona = QTableWidgetItem(nombre)
-        item_persona.setIcon(icons.icon("person", 16, "#2ecc71"))
+        item_persona.setIcon(icons.icon("person", 16, "#3ecf8e"))
         self.events_table.setItem(0, 1, item_persona)
         item_conf = QTableWidgetItem(f"{confianza:.0f}%")
         item_conf.setForeground(QColor(icons.COLOR_OK))

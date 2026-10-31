@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 
 from PySide6.QtCore import QEvent, Qt, QTimer
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -32,13 +33,16 @@ from app.core.permissions import (
 from app.database.models import User
 from app.database.session import get_session
 from app.gui import icons
-from app.gui.theme import get_stylesheet
+from app.gui.theme import get_palette, get_stylesheet
 from app.gui.widgets.admin_widget import AdministrationWidget
 from app.gui.widgets.dashboard import DashboardWidget
 from app.gui.widgets.login_widget import LoginDialog
 from app.gui.widgets.person_registration import PersonManagementWidget
 from app.gui.widgets.search_compare import FaceCompareWidget, PersonSearchWidget
 from app.gui.widgets.sidebar import Sidebar
+from app.gui.widgets.sidebar import NAV_ITEMS
+from app.gui.widgets.command_palette import CommandPalette
+from app.gui.widgets.workspace_area import WorkspaceArea
 from app.gui.widgets.statistics_widget import StatisticsWidget
 from app.gui.widgets.video_widget import VideoAnalysisWidget
 from app.gui.widgets.webcam_widget import WebcamWidget
@@ -117,7 +121,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(tr("main_window.title", name=settings.app.name,
                                version=settings.app.version))
         self.resize(1360, 860)
+        self.setMinimumSize(1040, 700)
         self.setStyleSheet(get_stylesheet(settings.app.theme))
+        self.setPalette(get_palette(settings.app.theme))
 
         central = QWidget()
         outer_layout = QVBoxLayout(central)
@@ -128,7 +134,7 @@ class MainWindow(QMainWindow):
         # --- Top bar: user, role, log out ---
         top_bar = QWidget()
         top_bar.setObjectName("TopBar")
-        top_bar.setFixedHeight(48)
+        top_bar.setFixedHeight(60)
         top_layout = QHBoxLayout(top_bar)
         top_layout.setContentsMargins(16, 0, 16, 0)
 
@@ -136,16 +142,24 @@ class MainWindow(QMainWindow):
         user_layout = QHBoxLayout(user_box)
         user_layout.setContentsMargins(0, 0, 0, 0)
         user_layout.setSpacing(8)
-        user_layout.addWidget(icons.icon_label("person", 18, "#b7b9c4"))
+        user_layout.addWidget(icons.icon_label("person", 18, "#b4b4b4"))
         self.user_label = QLabel()
-        self.user_label.setStyleSheet("color: #b7b9c4;")
+        self.user_label.setStyleSheet("color: #b4b4b4;")
         user_layout.addWidget(self.user_label)
-        top_layout.addWidget(user_box)
+        self.workspace_label = QLabel()
+        self.workspace_label.setObjectName("WorkspaceTitle")
+        top_layout.addWidget(self.workspace_label)
         top_layout.addStretch()
+        self.quick_nav_btn = QPushButton()
+        self.quick_nav_btn.setObjectName("SecondaryButton")
+        self.quick_nav_btn.setIcon(icons.icon("search", 16))
+        self.quick_nav_btn.clicked.connect(self._open_navigation)
+        top_layout.addWidget(self.quick_nav_btn)
+        top_layout.addWidget(user_box)
 
         self.logout_btn = QPushButton()
         self.logout_btn.setObjectName("SecondaryButton")
-        self.logout_btn.setIcon(icons.icon("logout", 16, "#b7b9c4"))
+        self.logout_btn.setIcon(icons.icon("logout", 16, "#b4b4b4"))
         self.logout_btn.clicked.connect(self._logout)
         top_layout.addWidget(self.logout_btn)
         outer_layout.addWidget(top_bar)
@@ -175,17 +189,34 @@ class MainWindow(QMainWindow):
             "estadisticas": StatisticsWidget(),
             "administracion": AdministrationWidget(self.username, self.current_user_id),
         }
-        for page in self.pages.values():
-            self.stack.addWidget(page)
+        self.page_hosts = {}
+        for key, page in self.pages.items():
+            host = WorkspaceArea()
+            host.setWidgetResizable(True)
+            host.setWidget(page)
+            self.page_hosts[key] = host
+            self.stack.addWidget(host)
 
         allowed_keys = {key for key, perm in NAV_PERMISSIONS.items()
                         if "*" in self.permisos or perm in self.permisos}
+        self.allowed_keys = allowed_keys
         self.sidebar.set_allowed_keys(allowed_keys)
+        self.dashboard.set_allowed_keys(allowed_keys)
+        self.dashboard.navigate.connect(self._navigate)
+        self._nav_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
+        self._nav_shortcut.activated.connect(self._open_navigation)
 
         if "dashboard" in allowed_keys:
-            self.stack.setCurrentWidget(self.dashboard)
+            self.stack.setCurrentWidget(self.page_hosts["dashboard"])
         elif allowed_keys:
-            self.stack.setCurrentWidget(self.pages[next(iter(allowed_keys))])
+            first_key = next(key for key, _, _ in NAV_ITEMS if key in allowed_keys)
+            self._navigate(first_key)
+        else:
+            self.no_access_label = QLabel(tr("workspace.no_access"))
+            self.no_access_label.setAlignment(Qt.AlignCenter)
+            self.no_access_label.setWordWrap(True)
+            self.stack.addWidget(self.no_access_label)
+            self.stack.setCurrentWidget(self.no_access_label)
 
         # --- Automatic lock on inactivity ---
         QApplication.instance().installEventFilter(self)
@@ -203,6 +234,23 @@ class MainWindow(QMainWindow):
                                version=settings.app.version))
         self.user_label.setText(f"{self.username}  ·  {self.role_name}")
         self.logout_btn.setText(tr("main_window.logout"))
+        self.quick_nav_btn.setText(tr("workspace.quick_navigation") + "  Ctrl+K")
+        self.quick_nav_btn.setToolTip(tr("workspace.find_module"))
+        if hasattr(self, "no_access_label"):
+            self.no_access_label.setText(tr("workspace.no_access"))
+            self.workspace_label.setText(tr("sidebar.app_name"))
+        self._update_workspace_title()
+
+    def _update_workspace_title(self) -> None:
+        for key, label, _ in NAV_ITEMS:
+            if self.stack.currentWidget() is self.page_hosts[key]:
+                self.workspace_label.setText(tr("sidebar.app_name") + "  /  " + tr(label))
+                break
+
+    def _open_navigation(self) -> None:
+        dialog = CommandPalette(self.allowed_keys, self)
+        dialog.navigate.connect(self._navigate)
+        dialog.exec()
 
     def _navigate(self, key: str) -> None:
         """Navigate to the page identified by key.
@@ -210,6 +258,9 @@ class MainWindow(QMainWindow):
         Args:
             key: Navigation key (e.g., ``"dashboard"``).
         """
+        permission = NAV_PERMISSIONS.get(key)
+        if permission is None or ("*" not in self.permisos and permission not in self.permisos):
+            return
         page = self.pages.get(key)
         if page is None:
             return
@@ -226,7 +277,9 @@ class MainWindow(QMainWindow):
                 self.pages["administracion"].refresh_all()
         except Exception:  # noqa: BLE001
             logger.exception("Error refreshing module '{}'", key)
-        self.stack.setCurrentWidget(page)
+        self.stack.setCurrentWidget(self.page_hosts[key])
+        self.sidebar.select(key)
+        self._update_workspace_title()
 
     def _logout(self) -> None:
         """Handle explicit logout and close the window."""

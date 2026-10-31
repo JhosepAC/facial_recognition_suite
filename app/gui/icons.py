@@ -13,10 +13,10 @@ _FONT_PATH = Path(__file__).resolve().parent / "assets" / "MaterialIcons-Regular
 FONT_FAMILY = "Material Icons"
 
 # Icon color palette (aligned with the default dark theme).
-COLOR_OK = "#2ecc71"
+COLOR_OK = "#3ecf8e"
 COLOR_WARN = "#f2b134"
 COLOR_ERROR = "#e85d5d"
-COLOR_MUTED = "#b7b9c4"
+COLOR_MUTED = "#b4b4b4"
 
 # Codepoints for Google Material Icons (MaterialIcons-Regular.ttf).
 GLYPHS = {
@@ -76,7 +76,7 @@ GLYPHS = {
     "cleaning_services": "\ue0ff",
     "admin_panel": "\uef39",
     "groups": "\ue7ef",
-    "shield": "\ue9e1",
+    "shield": "\ue32a",
     "manage_accounts": "\ue02d",
     "save": "\ue161",
     "lock_open": "\ue898",

@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-30T22:20:00-05:00",
+  "title": "Design System: FaceScan Dark Workspace",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "Recognition Green" },
+      "workspace": { "role": "neutral", "displayName": "Neutral Charcoal" },
+      "panel": { "role": "neutral", "displayName": "Raised Charcoal" }
+    },
+    "typographyMeta": {
+      "page-heading": { "displayName": "Native Page Heading", "purpose": "Identify the active module without display decoration." },
+      "body": { "displayName": "Native UI Text", "purpose": "Forms, commands, and operating instructions." }
+    },
+    "breakpoints": [
+      { "name": "webcam-stack-workspace", "value": "900px" },
+      { "name": "registration-stack-workspace", "value": "1000px" },
+      { "name": "video-stack-workspace", "value": "1200px" }
+    ],
+    "native": {
+      "platform": "PySide6 desktop",
+      "source": "app/gui/theme.py",
+      "palette": "get_palette(theme) supplies native viewport, base, text, button, selection, tooltip, placeholder, and disabled roles alongside QSS.",
+      "windowDefault": "1360x860",
+      "windowMinimum": "1040x700",
+      "sidebarWidth": "232px",
+      "topBarHeight": "60px",
+      "splitterHandleWidth": "12px",
+      "icons": "Bundled Google Material Icons rendered by app/gui/icons.py",
+      "depth": "Flat tonal layers and thin borders; no shared decorative shadow tokens."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Browser preview of the native primary action treatment.",
+      "html": "<button class=\"primary\">Start recognition</button>",
+      "css": ".primary{font:600 13px 'Segoe UI',sans-serif;background:#207f55;color:#fff;border:1px solid #35a873;border-radius:6px;padding:8px 14px;min-height:18px}.primary:hover{background:#287e58;border-color:#65dca5}.primary:focus-visible{outline:1px solid #a1f3c9;outline-offset:1px}.primary:active{background:#1b6646}.primary:disabled{background:#252525;border-color:#353535;color:#949494}"
+    },
+    {
+      "name": "Workspace Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Browser preview of native search and form input states.",
+      "html": "<input class=\"field\" aria-label=\"Search modules\" placeholder=\"Search modules…\" />",
+      "css": ".field{font:13px 'Segoe UI',sans-serif;background:#212121;color:#ededed;border:1px solid #404040;border-radius:6px;padding:7px 10px}.field::placeholder{color:#a3a3a3}.field:hover{border-color:#737373}.field:focus-visible{outline:none;border-color:#65dca5}.field:disabled{background:#1c1c1c;color:#949494}"
+    },
+    {
+      "name": "Workspace Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Flat native panel boundary, translated into a self-contained browser sample.",
+      "html": "<section class=\"panel\"><h3>Recognition session</h3><p>Recent recognitions appear here.</p></section>",
+      "css": ".panel{font:13px 'Segoe UI',sans-serif;color:#ededed;background:#1c1c1c;border:1px solid #303030;border-radius:12px;padding:16px}.panel h3{font-size:15px;font-weight:700;margin:0 0 12px}.panel p{font-size:12px;color:#a3a3a3;margin:0}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Supabase-inspired native dark workspace",
+    "overview": "FaceScan uses neutral charcoal surfaces, restrained green selection, and clear control boundaries for local biometric workflows. The native operating interface prioritizes tasks, evidence, and readable data, with particular attention to webcam recognition and video analysis.",
+    "keyCharacteristics": ["Neutral dark surfaces", "Restrained green state and action accents", "Native text and controls", "Responsive split panels", "Permission-aware keyboard navigation"],
+    "rules": [
+      { "name": "Shared Surface Rule", "body": "Set native QPalette roles as well as QSS so viewports and auto-filled containers retain the dark system.", "section": "colors" }
+    ],
+    "dos": ["Do use shared QSS and QPalette for new controls.", "Do preserve visible focus and semantic states.", "Do check both languages and compact layouts."],
+    "donts": ["Don't add retro blue-black chrome or decorative neon glows.", "Don't conceal native controls or existing functionality for decoration."]
+  }
+}

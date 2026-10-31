@@ -75,7 +75,7 @@ def _wrap_scroll(widget: QWidget) -> QScrollArea:
 # --------------------------------------------------------------------------- #
 class MetricCard(QFrame):
     def __init__(self, title: str, value: str = "—", icon_name: str = "info",
-                 icon_color: str = "#6fa8ff", caption: str = "",
+                 icon_color: str = "#65dca5", caption: str = "",
                  description: str = "", parent=None):
         super().__init__(parent)
         self.setObjectName("Card")
@@ -94,7 +94,7 @@ class MetricCard(QFrame):
         top.addWidget(icon_label)
         if description:
             info_label = QLabel()
-            info_label.setPixmap(icons.pixmap("info", 13, "#6b6e7d"))
+            info_label.setPixmap(icons.pixmap("info", 13, "#949494"))
             info_label.setToolTip(description)
             self._info_labels.append(info_label)
             top.addWidget(info_label)
@@ -110,7 +110,7 @@ class MetricCard(QFrame):
         lay.addWidget(self._title_label)
 
         self.caption_label = QLabel(caption)
-        self.caption_label.setStyleSheet("color: #6b6e7d; font-size: 11px;")
+        self.caption_label.setStyleSheet("color: #949494; font-size: 11px;")
         self.caption_label.setWordWrap(True)
         lay.addWidget(self.caption_label)
 
@@ -144,7 +144,7 @@ class ChartCard(QFrame):
         self._info_labels: list[QLabel] = []
         if description:
             info_label = QLabel()
-            info_label.setPixmap(icons.pixmap("info", 15, "#6b6e7d"))
+            info_label.setPixmap(icons.pixmap("info", 15, "#949494"))
             info_label.setToolTip(description)
             self._info_labels.append(info_label)
             header.addWidget(info_label)
@@ -155,7 +155,7 @@ class ChartCard(QFrame):
         self.image_label.setAlignment(Qt.AlignCenter)
         self.image_label.setMinimumSize(380, 260)
         self.image_label.setText("—")
-        self.image_label.setStyleSheet("color: #8f92a3;")
+        self.image_label.setStyleSheet("color: #a3a3a3;")
         lay.addWidget(self.image_label)
 
     def set_figure(self, fig) -> None:
@@ -183,6 +183,7 @@ class StatisticsWidget(QWidget):
 
         self._reg = _reg
         self._build_ui()
+        self._retranslate_cards()
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._on_timer_tick)
         self._apply_auto_state()
@@ -254,14 +255,14 @@ class StatisticsWidget(QWidget):
     def _build_header(self) -> QHBoxLayout:
         header = QHBoxLayout()
         header.setSpacing(12)
-        header.addWidget(icons.icon_label("chart", 26, "#6fa8ff"))
+        header.addWidget(icons.icon_label("chart", 26, "#65dca5"))
 
         title_col = QVBoxLayout()
         title_col.setSpacing(2)
         self._title = QLabel(tr("stats.title"))
         self._title.setStyleSheet("font-size: 22px; font-weight: 700;")
         self._subtitle = QLabel(tr("stats.subtitle"))
-        self._subtitle.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self._subtitle.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         title_col.addWidget(self._title)
         title_col.addWidget(self._subtitle)
         header.addLayout(title_col)
@@ -277,7 +278,7 @@ class StatisticsWidget(QWidget):
         header.addWidget(self.days_combo)
 
         self.last_update_label = QLabel("—")
-        self.last_update_label.setStyleSheet("color: #6b6e7d; font-size: 11px;")
+        self.last_update_label.setStyleSheet("color: #949494; font-size: 11px;")
         header.addWidget(self.last_update_label)
 
         self._auto_check = QCheckBox(tr("stats.auto"))
@@ -312,7 +313,7 @@ class StatisticsWidget(QWidget):
 
         kpi_grid = QGridLayout()
         kpi_grid.setSpacing(12)
-        self.card_personas = MetricCard("", "0", "people", "#6fa8ff")
+        self.card_personas = MetricCard("", "0", "people", "#65dca5")
         self._reg(self.card_personas, "stats.card_persons", "stats.card_persons_desc")
         self.card_fotos = MetricCard("", "0", "photo_library", "#46c37b")
         self._reg(self.card_fotos, "stats.card_photos", "stats.card_photos_desc")
@@ -380,7 +381,7 @@ class StatisticsWidget(QWidget):
         self._reg(self.card_personas_con_fotos, "stats.card_with_photos", "stats.card_with_photos_desc")
         self.card_personas_sin_fotos = MetricCard("", "0", "image", "#e85d5d")
         self._reg(self.card_personas_sin_fotos, "stats.card_without_photos", "stats.card_without_photos_desc")
-        self.card_promedio_fotos = MetricCard("", "0", "image", "#6fa8ff")
+        self.card_promedio_fotos = MetricCard("", "0", "image", "#65dca5")
         self._reg(self.card_promedio_fotos, "stats.card_avg_photos", "stats.card_avg_photos_desc")
         self.card_embeddings = MetricCard("", "0", "fingerprint", "#a06cd5")
         self._reg(self.card_embeddings, "stats.card_embeddings", "stats.card_embeddings_desc")
@@ -525,7 +526,7 @@ class StatisticsWidget(QWidget):
 
         self.db_info_label = QLabel("")
         self.db_info_label.setStyleSheet(
-            "color: #6b6e7d; font-size: 12px; font-family: 'Consolas';")
+            "color: #949494; font-size: 12px; font-family: 'Consolas';")
         self.db_info_label.setWordWrap(True)
         lay.addWidget(self.db_info_label)
         lay.addStretch()
@@ -578,12 +579,12 @@ class StatisticsWidget(QWidget):
         export_layout.addLayout(other_row)
 
         self.export_status_label = QLabel("")
-        self.export_status_label.setStyleSheet("color: #8f92a3;")
+        self.export_status_label.setStyleSheet("color: #a3a3a3;")
         self.export_status_label.setWordWrap(True)
         export_layout.addWidget(self.export_status_label)
 
         self.status_label = QLabel("")
-        self.status_label.setStyleSheet("color: #8f92a3;")
+        self.status_label.setStyleSheet("color: #a3a3a3;")
         self.status_label.setWordWrap(True)
         export_layout.addWidget(self.status_label)
         return export_frame
@@ -759,7 +760,7 @@ class StatisticsWidget(QWidget):
             conf = r["confianza"]
             item_conf = QTableWidgetItem(f"{conf:.1f}%" if conf is not None else "—")
             item_conf.setForeground(
-                QColor(icons.COLOR_OK) if conf is not None else QColor("#8f92a3"))
+                QColor(icons.COLOR_OK) if conf is not None else QColor("#a3a3a3"))
             item_conf.setTextAlignment(Qt.AlignCenter)
             self.events_table.setItem(i, 3, item_conf)
 

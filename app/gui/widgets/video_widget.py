@@ -35,7 +35,7 @@ ATTR_LABEL_KEYS = {
 ESTADO_GLYPHS = {
     "completado": ("check_circle", icons.COLOR_OK),
     "error": ("error", icons.COLOR_ERROR),
-    "procesando": ("sync", "#6fa8ff"),
+    "procesando": ("sync", "#65dca5"),
     "pendiente": ("circle", icons.COLOR_MUTED),
     "cancelado": ("close", icons.COLOR_MUTED),
 }
@@ -103,7 +103,7 @@ class VideoDropArea(QFrame):
 
         self.label = QLabel(tr("video.drop"))
         self.label.setAlignment(Qt.AlignCenter)
-        self.label.setStyleSheet("color: #8f92a3;")
+        self.label.setStyleSheet("color: #a3a3a3;")
         self.label.setWordWrap(True)
         layout.addWidget(self.label)
 
@@ -122,9 +122,9 @@ class VideoDropArea(QFrame):
                                 ", ".join(settings.video.allowed_extensions))
 
     def set_selected(self, path: str) -> None:
-        self.icon_label.setPixmap(icons.pixmap("movie", 28, "#6fa8ff"))
-        self.label.setText(icons.status_html("videocam", Path(path).name, "#e6e6e6"))
-        self.label.setStyleSheet("color: #e6e6e6; font-weight: 600;")
+        self.icon_label.setPixmap(icons.pixmap("movie", 28, "#65dca5"))
+        self.label.setText(icons.status_html("videocam", Path(path).name, "#ededed"))
+        self.label.setStyleSheet("color: #ededed; font-weight: 600;")
 
 
 # ====================================================================== #
@@ -146,7 +146,7 @@ class MetricChip(QFrame):
         self.value_label = QLabel(value)
         self.value_label.setStyleSheet("font-size: 20px; font-weight: 700; color: #ffffff;")
         self._label_w = QLabel(label)
-        self._label_w.setStyleSheet("color: #8f92a3; font-size: 11px;")
+        self._label_w.setStyleSheet("color: #a3a3a3; font-size: 11px;")
         col.addWidget(self.value_label)
         col.addWidget(self._label_w)
         layout.addLayout(col)
@@ -172,10 +172,10 @@ class PersonChip(QFrame):
         avatar = QLabel()
         avatar.setFixedSize(46, 46)
         avatar.setAlignment(Qt.AlignCenter)
-        avatar.setStyleSheet("background-color: #1a1b21; border-radius: 8px;")
+        avatar.setStyleSheet("background-color: #111111; border-radius: 8px;")
         pix = QPixmap(thumbnail) if thumbnail and Path(thumbnail).exists() else QPixmap()
         if pix.isNull():
-            avatar.setPixmap(icons.pixmap("person", 26, "#8f92a3"))
+            avatar.setPixmap(icons.pixmap("person", 26, "#a3a3a3"))
         else:
             avatar.setPixmap(pix.scaled(46, 46, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation))
         layout.addWidget(avatar)
@@ -189,7 +189,7 @@ class PersonChip(QFrame):
         if conf_promedio is not None:
             sub += f" · {conf_promedio:.0f}%"
         self._sub_label = QLabel(sub)
-        self._sub_label.setStyleSheet("color: #8f92a3; font-size: 11px;")
+        self._sub_label.setStyleSheet("color: #a3a3a3; font-size: 11px;")
         col.addWidget(name_label)
         col.addWidget(self._sub_label)
         layout.addLayout(col, stretch=1)
@@ -212,7 +212,7 @@ class PersonFilterChip(QPushButton):
         if not pix.isNull():
             self.setIcon(QIcon(pix.scaled(18, 18, Qt.KeepAspectRatio, Qt.SmoothTransformation)))
         else:
-            self.setIcon(icons.icon("person", 16, "#2ecc71"))
+            self.setIcon(icons.icon("person", 16, "#3ecf8e"))
         self.setText(f"{nombre}  ·  {count}")
         self.setToolTip(f"Ir a la primera detección de {nombre}")
 
@@ -245,10 +245,10 @@ class VideoPreviewWidget(QWidget):
 
     def paintEvent(self, event) -> None:  # noqa: N802
         painter = QPainter(self)
-        painter.fillRect(self.rect(), QColor("#14151c"))
+        painter.fillRect(self.rect(), QColor("#141414"))
 
         if self._image is None or self._image.isNull():
-            painter.setPen(QColor("#8f92a3"))
+            painter.setPen(QColor("#a3a3a3"))
             painter.setFont(QFont("Segoe UI", 13))
             painter.drawText(self.rect(), Qt.AlignCenter, self._placeholder)
             painter.end()
@@ -344,13 +344,13 @@ class VideoAnalysisWidget(QWidget):
 
         # Header
         header = QHBoxLayout()
-        header.addWidget(icons.icon_label("movie", 22, "#6fa8ff"))
+        header.addWidget(icons.icon_label("movie", 22, "#65dca5"))
         title_col = QVBoxLayout()
         title_col.setSpacing(0)
         self._title = QLabel(tr("video.title"))
         self._title.setStyleSheet("font-size: 22px; font-weight: 700;")
         self._subtitle = QLabel(tr("video.subtitle"))
-        self._subtitle.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self._subtitle.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         title_col.addWidget(self._title)
         title_col.addWidget(self._subtitle)
         header.addLayout(title_col)
@@ -374,7 +374,7 @@ class VideoAnalysisWidget(QWidget):
 
         sample_row = QHBoxLayout()
         self._sample_label = QLabel(tr("video.sampling_label"))
-        self._sample_label.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self._sample_label.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         sample_row.addWidget(self._sample_label)
         self.sample_combo = QComboBox()
         for key, interval in (
@@ -391,7 +391,7 @@ class VideoAnalysisWidget(QWidget):
 
         self.pick_btn = QPushButton(tr("video.pick"))
         self.pick_btn.setObjectName("SecondaryButton")
-        self.pick_btn.setIcon(icons.icon("folder_open", 16, "#b7b9c4"))
+        self.pick_btn.setIcon(icons.icon("folder_open", 16, "#b4b4b4"))
         self.pick_btn.clicked.connect(self._pick_file)
         controls.addWidget(self.pick_btn)
 
@@ -405,7 +405,7 @@ class VideoAnalysisWidget(QWidget):
         import_layout.addLayout(import_row)
 
         self.file_info_label = QLabel("")
-        self.file_info_label.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self.file_info_label.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         self.file_info_label.setVisible(False)
         import_layout.addWidget(self.file_info_label)
 
@@ -414,7 +414,7 @@ class VideoAnalysisWidget(QWidget):
         import_layout.addWidget(self.progress_bar)
 
         self.status_label = QLabel("")
-        self.status_label.setStyleSheet("color: #8f92a3;")
+        self.status_label.setStyleSheet("color: #a3a3a3;")
         self.status_label.setWordWrap(True)
         import_layout.addWidget(self.status_label)
 
@@ -422,6 +422,8 @@ class VideoAnalysisWidget(QWidget):
 
         # --- Splitter: jobs | detail ---
         splitter = QSplitter(Qt.Horizontal)
+        splitter.setProperty("stackBelowWidth", 1200)
+        splitter.setHandleWidth(12)
 
         # Left panel: job list
         jobs_frame = QFrame()
@@ -435,11 +437,11 @@ class VideoAnalysisWidget(QWidget):
         self._jobs_title.setStyleSheet("font-weight: 700; font-size: 15px;")
         jobs_header.addWidget(self._jobs_title)
         self.jobs_count_label = QLabel("0")
-        self.jobs_count_label.setStyleSheet("color: #8f92a3;")
+        self.jobs_count_label.setStyleSheet("color: #a3a3a3;")
         jobs_header.addWidget(self.jobs_count_label)
         jobs_header.addStretch()
         self._refresh_btn = QPushButton()
-        self._refresh_btn.setIcon(icons.icon("refresh", 16, "#b7b9c4"))
+        self._refresh_btn.setIcon(icons.icon("refresh", 16, "#b4b4b4"))
         self._refresh_btn.setObjectName("IconButton")
         self._refresh_btn.setFixedSize(28, 28)
         self._refresh_btn.setToolTip(tr("video.refresh_list"))
@@ -448,6 +450,8 @@ class VideoAnalysisWidget(QWidget):
         jobs_layout.addLayout(jobs_header)
 
         self.jobs_table = QTableWidget(0, 5)
+        self.jobs_table.setMinimumHeight(160)
+        self.jobs_table.setMaximumHeight(320)
         self.jobs_table.setHorizontalHeaderLabels(
             [tr("video.job_col_name"), tr("video.job_col_duration"),
              tr("video.job_col_status"), tr("video.job_col_detections"),
@@ -465,7 +469,7 @@ class VideoAnalysisWidget(QWidget):
 
         self._jobs_hint = QLabel(tr("video.jobs_hint"))
         self._jobs_hint.setWordWrap(True)
-        self._jobs_hint.setStyleSheet("color: #6b6e7d; font-size: 11px;")
+        self._jobs_hint.setStyleSheet("color: #949494; font-size: 11px;")
         jobs_layout.addWidget(self._jobs_hint)
         splitter.addWidget(jobs_frame)
 
@@ -481,14 +485,14 @@ class VideoAnalysisWidget(QWidget):
         self._detail_title.setStyleSheet("font-weight: 700; font-size: 15px;")
         detail_header.addWidget(self._detail_title)
         self.detail_file_label = QLabel("")
-        self.detail_file_label.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self.detail_file_label.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         self.detail_file_label.setMinimumWidth(140)
         detail_header.addWidget(self.detail_file_label)
         detail_header.addStretch()
 
         self.export_btn = QPushButton(tr("video.export"))
         self.export_btn.setObjectName("SecondaryButton")
-        self.export_btn.setIcon(icons.icon("download", 16, "#b7b9c4"))
+        self.export_btn.setIcon(icons.icon("download", 16, "#b4b4b4"))
         self.export_btn.setEnabled(False)
         self.export_btn.setMenu(self._build_export_menu())
         detail_header.addWidget(self.export_btn)
@@ -506,9 +510,9 @@ class VideoAnalysisWidget(QWidget):
         # Metrics
         chips_row = QHBoxLayout()
         chips_row.setSpacing(10)
-        self.chip_detecciones = MetricChip("visibility", "—", tr("webcam.detections"), "#6fa8ff")
-        self.chip_personas = MetricChip("people", "—", tr("video.chip_persons"), "#2ecc71")
-        self.chip_reconocidas = MetricChip("check_circle", "—", tr("webcam.recognized"), "#2ecc71")
+        self.chip_detecciones = MetricChip("visibility", "—", tr("webcam.detections"), "#65dca5")
+        self.chip_personas = MetricChip("people", "—", tr("video.chip_persons"), "#3ecf8e")
+        self.chip_reconocidas = MetricChip("check_circle", "—", tr("webcam.recognized"), "#3ecf8e")
         self.chip_no_reconocidas = MetricChip("person", "—", tr("webcam.unknowns"), "#e85d5d")
         self.chip_duracion = MetricChip("schedule", "—", tr("video.chip_duration"))
         for chip in (self.chip_detecciones, self.chip_personas, self.chip_reconocidas,
@@ -519,7 +523,7 @@ class VideoAnalysisWidget(QWidget):
 
         # Row of detected persons (clickable chips)
         self._persons_label = QLabel(tr("video.persons_detected"))
-        self._persons_label.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self._persons_label.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         detail_layout.addWidget(self._persons_label)
 
         self.persons_scroll = QScrollArea()
@@ -537,7 +541,7 @@ class VideoAnalysisWidget(QWidget):
         self.persons_layout.setContentsMargins(0, 0, 0, 0)
         self.persons_layout.setSpacing(8)
         self._persons_empty_label = QLabel(tr("video.persons_none"))
-        self._persons_empty_label.setStyleSheet("color: #6b6e7d; font-size: 12px;")
+        self._persons_empty_label.setStyleSheet("color: #949494; font-size: 12px;")
         self.persons_layout.addWidget(self._persons_empty_label)
         self.persons_layout.addStretch()
         self.persons_scroll.setWidget(persons_host)
@@ -560,12 +564,12 @@ class VideoAnalysisWidget(QWidget):
         nav_row = QHBoxLayout()
         nav_row.setSpacing(8)
         self.frame_info_label = QLabel("")
-        self.frame_info_label.setStyleSheet("color: #8f92a3; font-size: 12px; font-family: Consolas;")
+        self.frame_info_label.setStyleSheet("color: #a3a3a3; font-size: 12px; font-family: Consolas;")
         nav_row.addWidget(self.frame_info_label)
 
         self.first_btn = QPushButton()
         self.first_btn.setObjectName("IconButton")
-        self.first_btn.setIcon(icons.icon("first_page", 18, "#b7b9c4"))
+        self.first_btn.setIcon(icons.icon("first_page", 18, "#b4b4b4"))
         self.first_btn.setFixedSize(30, 30)
         self.first_btn.setToolTip(tr("video.first_frame"))
         self.first_btn.clicked.connect(lambda: self._set_frame(0))
@@ -573,7 +577,7 @@ class VideoAnalysisWidget(QWidget):
 
         self.prev_btn = QPushButton()
         self.prev_btn.setObjectName("IconButton")
-        self.prev_btn.setIcon(icons.icon("skip_previous", 18, "#b7b9c4"))
+        self.prev_btn.setIcon(icons.icon("skip_previous", 18, "#b4b4b4"))
         self.prev_btn.setFixedSize(30, 30)
         self.prev_btn.setToolTip(tr("video.prev_detection"))
         self.prev_btn.clicked.connect(self._go_prev_detection)
@@ -581,7 +585,7 @@ class VideoAnalysisWidget(QWidget):
 
         self.play_btn = QPushButton()
         self.play_btn.setObjectName("IconButton")
-        self.play_btn.setIcon(icons.icon("play", 18, "#6fa8ff"))
+        self.play_btn.setIcon(icons.icon("play", 18, "#65dca5"))
         self.play_btn.setFixedSize(30, 30)
         self.play_btn.setToolTip(tr("video.play_pause"))
         self.play_btn.setEnabled(False)
@@ -590,7 +594,7 @@ class VideoAnalysisWidget(QWidget):
 
         self.next_btn = QPushButton()
         self.next_btn.setObjectName("IconButton")
-        self.next_btn.setIcon(icons.icon("skip_next", 18, "#b7b9c4"))
+        self.next_btn.setIcon(icons.icon("skip_next", 18, "#b4b4b4"))
         self.next_btn.setFixedSize(30, 30)
         self.next_btn.setToolTip(tr("video.next_detection"))
         self.next_btn.clicked.connect(self._go_next_detection)
@@ -598,7 +602,7 @@ class VideoAnalysisWidget(QWidget):
 
         self.last_btn = QPushButton()
         self.last_btn.setObjectName("IconButton")
-        self.last_btn.setIcon(icons.icon("last_page", 18, "#b7b9c4"))
+        self.last_btn.setIcon(icons.icon("last_page", 18, "#b4b4b4"))
         self.last_btn.setFixedSize(30, 30)
         self.last_btn.setToolTip(tr("video.last_frame"))
         self.last_btn.clicked.connect(self._go_last_frame)
@@ -625,7 +629,7 @@ class VideoAnalysisWidget(QWidget):
         det_header.addWidget(self.det_title_label)
 
         self._filter_label = QLabel(tr("video.min_confidence"))
-        self._filter_label.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self._filter_label.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         det_header.addWidget(self._filter_label)
         self.filter_combo = QComboBox()
         for key, value in (("video.filter_all", 0), ("video.filter_gte_50", 50),
@@ -673,10 +677,10 @@ class VideoAnalysisWidget(QWidget):
 
     def _build_export_menu(self) -> QMenu:
         menu = QMenu(self)
-        act_excel = menu.addAction(icons.icon("description", 16, "#6fa8ff"),
+        act_excel = menu.addAction(icons.icon("description", 16, "#65dca5"),
                                    tr("video.export_excel"))
         act_excel.triggered.connect(lambda: self._export_flow("excel"))
-        act_csv = menu.addAction(icons.icon("download", 16, "#b7b9c4"),
+        act_csv = menu.addAction(icons.icon("download", 16, "#b4b4b4"),
                                  tr("video.export_csv"))
         act_csv.triggered.connect(lambda: self._export_flow("csv"))
         return menu
@@ -930,7 +934,7 @@ class VideoAnalysisWidget(QWidget):
         self.persons_layout.addStretch()
         if not persons:
             self._persons_empty_label = QLabel(tr("video.persons_none"))
-            self._persons_empty_label.setStyleSheet("color: #6b6e7d; font-size: 12px;")
+            self._persons_empty_label.setStyleSheet("color: #949494; font-size: 12px;")
             self.persons_layout.insertWidget(0, self._persons_empty_label)
             return
         for entry in persons[:8]:
@@ -960,7 +964,7 @@ class VideoAnalysisWidget(QWidget):
             item_persona = QTableWidgetItem(r["persona"])
             pix = QPixmap(r["evidencia"]) if r["evidencia"] and Path(r["evidencia"]).exists() else QPixmap()
             if pix.isNull():
-                item_persona.setIcon(icons.icon("person", 18, "#8f92a3"))
+                item_persona.setIcon(icons.icon("person", 18, "#a3a3a3"))
             else:
                 item_persona.setIcon(QIcon(pix.scaled(34, 34, Qt.KeepAspectRatio, Qt.SmoothTransformation)))
             item_persona.setData(Qt.UserRole + 1, r["person_uuid"])
@@ -975,7 +979,7 @@ class VideoAnalysisWidget(QWidget):
 
             item_estado = QTableWidgetItem(tr("video.status_recognized") if r["recognized"] else tr("webcam.unknown"))
             item_estado.setTextAlignment(Qt.AlignCenter)
-            item_estado.setForeground(QColor(icons.COLOR_OK) if r["recognized"] else QColor("#b7b9c4"))
+            item_estado.setForeground(QColor(icons.COLOR_OK) if r["recognized"] else QColor("#b4b4b4"))
             self.detections_table.setItem(i, 5, item_estado)
         self.detections_table.setSortingEnabled(True)
 
@@ -1051,7 +1055,7 @@ class VideoAnalysisWidget(QWidget):
     def _stop_playback(self) -> None:
         self._playing = False
         self._play_timer.stop()
-        self.play_btn.setIcon(icons.icon("play", 18, "#6fa8ff"))
+        self.play_btn.setIcon(icons.icon("play", 18, "#65dca5"))
         self.play_btn.setToolTip(tr("video.play"))
         self.prev_btn.setEnabled(True)
         self.next_btn.setEnabled(True)

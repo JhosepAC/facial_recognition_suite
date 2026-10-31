@@ -83,7 +83,7 @@ class ChangePasswordDialog(QDialog):
         intro = QLabel(icons.status_html(
             "person",
             "Cambia la contraseña de tu propia cuenta. Necesitarás escribir la actual.",
-            "#8f92a3", 13,
+            "#a3a3a3", 13,
         ))
         intro.setWordWrap(True)
         layout.addWidget(intro)
@@ -99,7 +99,7 @@ class ChangePasswordDialog(QDialog):
         layout.addLayout(form)
 
         hint = QLabel(AuthService.password_policy_hint() + ".")
-        hint.setStyleSheet("color: #8f92a3; font-size: 11px;")
+        hint.setStyleSheet("color: #a3a3a3; font-size: 11px;")
         layout.addWidget(hint)
 
         self.error_label = QLabel("")
@@ -165,7 +165,7 @@ class TotpSetupDialog(QDialog):
             "security",
             "La verificación en dos pasos exige un código generado por una app "
             "autenticadora (Google Authenticator, Authy…) además de la contraseña.",
-            "#8f92a3", 13,
+            "#a3a3a3", 13,
         ))
         intro.setWordWrap(True)
         layout.addWidget(intro)
@@ -360,7 +360,7 @@ class UsersTab(QWidget):
         my_pass_btn.clicked.connect(self._open_change_own_password)
         grid.addWidget(my_pass_btn, 3, 0)
         row3_hint = QLabel("Tu propia cuenta (requiere la contraseña actual)")
-        row3_hint.setStyleSheet("color: #8f92a3; font-size: 11px;")
+        row3_hint.setStyleSheet("color: #a3a3a3; font-size: 11px;")
         grid.addWidget(row3_hint, 3, 1, 1, 2)
 
         self.totp_btn = QPushButton("Configurar verificación en 2 pasos (2FA)")
@@ -387,7 +387,7 @@ class UsersTab(QWidget):
         form.addRow("Rol *", self.new_role_combo)
 
         hint = QLabel(AuthService.password_policy_hint() + ".")
-        hint.setStyleSheet("color: #8f92a3; font-size: 11px;")
+        hint.setStyleSheet("color: #a3a3a3; font-size: 11px;")
         form.addRow(hint)
 
         create_btn = QPushButton("Crear usuario")
@@ -872,7 +872,7 @@ class BackupTab(QWidget):
         row.addWidget(QLabel("Backup, restauración y limpieza"))
         row.addStretch()
         self.last_backup_label = QLabel("Sin respaldos registrados en esta sesión.")
-        self.last_backup_label.setStyleSheet("color: #8f92a3; font-size: 11px;")
+        self.last_backup_label.setStyleSheet("color: #a3a3a3; font-size: 11px;")
         row.addWidget(self.last_backup_label)
         return row
 
@@ -1056,7 +1056,7 @@ class SecureConfigTab(QWidget):
         form.addRow("Valor", self.value_field)
 
         info = QLabel(icons.status_html("security", "El valor se cifra con Fernet antes de guardarse.",
-                                        "#8f92a3", 13))
+                                        "#a3a3a3", 13))
         info.setWordWrap(True)
         form.addRow(info)
 
@@ -1202,14 +1202,14 @@ class CalibrationTab(QWidget):
         root.addWidget(self.header_title)
         self.hint_label = QLabel()
         self.hint_label.setWordWrap(True)
-        self.hint_label.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self.hint_label.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         root.addWidget(self.hint_label)
 
         sliders_grid = QGridLayout()
         sliders_grid.setHorizontalSpacing(16)
         for i, field in enumerate(ATTR_FIELDS):
             name = QLabel(tr(ATTR_LABEL_KEYS[field]))
-            name.setStyleSheet("color: #c9cbd6; font-size: 12px;")
+            name.setStyleSheet("color: #d4d4d4; font-size: 12px;")
             slider = QSlider(Qt.Horizontal)
             slider.setRange(5, 95)
             slider.setValue(int(round(self._thresholds[field] * 100)))
@@ -1217,7 +1217,7 @@ class CalibrationTab(QWidget):
             slider.setPageStep(10)
             slider.valueChanged.connect(self._recompute)
             value = QLabel(f"{self._thresholds[field]:.2f}")
-            value.setStyleSheet("color: #6fa8ff; font-size: 12px; font-weight: 600;")
+            value.setStyleSheet("color: #65dca5; font-size: 12px; font-weight: 600;")
             value.setMinimumWidth(34)
             sliders_grid.addWidget(name, i, 0)
             sliders_grid.addWidget(slider, i, 1)
@@ -1229,7 +1229,7 @@ class CalibrationTab(QWidget):
 
         self.counts_label = QLabel()
         self.counts_label.setWordWrap(True)
-        self.counts_label.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self.counts_label.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         root.addWidget(self.counts_label)
 
         btn_row = QHBoxLayout()
@@ -1242,7 +1242,7 @@ class CalibrationTab(QWidget):
         self.apply_btn.clicked.connect(self._apply_thresholds)
         btn_row.addWidget(self.apply_btn)
         self.status_label = QLabel("")
-        self.status_label.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self.status_label.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         btn_row.addWidget(self.status_label)
         btn_row.addStretch()
         root.addLayout(btn_row)
@@ -1305,7 +1305,7 @@ class CalibrationTab(QWidget):
             thumb = entry.get("thumb")
             pix = QPixmap(thumb) if thumb and Path(thumb).exists() else QPixmap()
             if pix.isNull():
-                name_item.setIcon(icons.icon("person", 18, "#8f92a3"))
+                name_item.setIcon(icons.icon("person", 18, "#a3a3a3"))
             else:
                 name_item.setIcon(QIcon(pix.scaled(
                     28, 28, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)))
@@ -1314,7 +1314,7 @@ class CalibrationTab(QWidget):
             for c, field in enumerate(ATTR_FIELDS, start=1):
                 present = bool(getattr(attrs, field)) if attrs else False
                 item = QTableWidgetItem("✓" if present else "—")
-                item.setForeground(QColor("#2ecc71" if present else "#6b6e7d"))
+                item.setForeground(QColor("#3ecf8e" if present else "#949494"))
                 item.setTextAlignment(Qt.AlignCenter)
                 if entry_attrs is not None and field in (entry_attrs.conf or {}):
                     item.setToolTip(f"{entry_attrs.conf[field]:.2f}")
@@ -1646,7 +1646,7 @@ class PreferencesTab(QWidget):
 
         self.hint_label = QLabel()
         self.hint_label.setWordWrap(True)
-        self.hint_label.setStyleSheet("color: #8f92a3;")
+        self.hint_label.setStyleSheet("color: #a3a3a3;")
         form.addRow("", self.hint_label)
         root.addWidget(form_box)
 
@@ -1802,7 +1802,7 @@ class AdministrationWidget(QWidget):
         self.title_label.setStyleSheet("font-size: 22px; font-weight: 700;")
         title_block.addWidget(self.title_label)
         self.summary_label = QLabel("")
-        self.summary_label.setStyleSheet("color: #8f92a3;")
+        self.summary_label.setStyleSheet("color: #a3a3a3;")
         title_block.addWidget(self.summary_label)
         header.addLayout(title_block)
         header.addStretch()
