@@ -8,11 +8,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QDate, QLocale
+from PySide6.QtCore import QDate, QLocale, Signal
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -54,6 +55,8 @@ def _today_text() -> str:
 class DashboardWidget(QWidget):
     """Landing dashboard with greeting and recent activity."""
 
+    navigate = Signal(str)
+
     def __init__(self, parent=None):
         """Initialize the dashboard widget.
 
@@ -67,14 +70,14 @@ class DashboardWidget(QWidget):
 
         header = QHBoxLayout()
         header.setSpacing(12)
-        header.addWidget(icons.icon_label("home", 26, "#6fa8ff"))
+        header.addWidget(icons.icon_label("home", 26, "#65dca5"))
 
         title_col = QVBoxLayout()
         title_col.setSpacing(2)
         self.saludo_label = QLabel()
         self.saludo_label.setStyleSheet("font-size: 24px; font-weight: 700;")
         self.fecha_label = QLabel()
-        self.fecha_label.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self.fecha_label.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         title_col.addWidget(self.saludo_label)
         title_col.addWidget(self.fecha_label)
         header.addLayout(title_col)
@@ -82,11 +85,35 @@ class DashboardWidget(QWidget):
 
         layout.addLayout(header)
 
+        self.intro = QLabel()
+        self.intro.setObjectName("MutedLabel")
+        self.intro.setWordWrap(True)
+        layout.addWidget(self.intro)
+        self.actions = {}
+        action_row = QHBoxLayout()
+        action_row.setSpacing(12)
+        for key, text_key, glyph in (
+            ("personas", "workspace.enroll", "person_add"),
+            ("busqueda", "workspace.identify", "search"),
+            ("videos", "workspace.analyze_video", "movie"),
+        ):
+            button = QPushButton()
+            button.setIcon(icons.icon(glyph, 18, "#ffffff" if key == "personas" else icons.COLOR_MUTED))
+            if key != "personas":
+                button.setObjectName("SecondaryButton")
+            button.clicked.connect(lambda _checked=False, k=key: self.navigate.emit(k))
+            self.actions[key] = (button, text_key)
+            action_row.addWidget(button)
+        action_row.addStretch()
+        layout.addLayout(action_row)
+
         self.actividad_title = QLabel()
         self.actividad_title.setStyleSheet("font-size: 16px; font-weight: 600; margin-top: 12px;")
         layout.addWidget(self.actividad_title)
 
         self.actividad_container = QVBoxLayout()
+        self.actividad_container.setContentsMargins(16, 16, 16, 16)
+        self.actividad_container.setSpacing(0)
         actividad_frame = QFrame()
         actividad_frame.setObjectName("Card")
         actividad_frame.setLayout(self.actividad_container)
@@ -103,6 +130,14 @@ class DashboardWidget(QWidget):
         self.saludo_label.setText(f"{_greeting()}, {tr('dashboard.welcome')}")
         self.fecha_label.setText(_today_text())
         self.actividad_title.setText(tr("dashboard.recent_activity"))
+        self.intro.setText(tr("workspace.intro"))
+        for button, key in self.actions.values():
+            button.setText(tr(key))
+
+    def set_allowed_keys(self, allowed_keys: set[str]) -> None:
+        """Expose shortcuts only for authorized modules."""
+        for key, (button, _label) in self.actions.items():
+            button.setVisible(key in allowed_keys)
 
     def refresh(self) -> None:
         """Reload recent recognition events and rebuild the list."""
@@ -130,7 +165,8 @@ class DashboardWidget(QWidget):
 
         if not eventos:
             empty = QLabel(tr("dashboard.no_recent"))
-            empty.setStyleSheet("color: #8f92a3; padding: 12px;")
+            empty.setWordWrap(True)
+            empty.setStyleSheet("color: #a3a3a3; padding: 24px 12px;")
             self.actividad_container.addWidget(empty)
         else:
             for evento in eventos:
@@ -149,5 +185,5 @@ class DashboardWidget(QWidget):
                 else:
                     texto = f"{origen}&nbsp; {tr('dashboard.no_confidence')}"
                 row = QLabel(texto)
-                row.setStyleSheet("padding: 6px 10px; border-bottom: 1px solid #2a2b33;")
+                row.setStyleSheet("padding: 6px 10px; border-bottom: 1px solid #303030;")
                 self.actividad_container.addWidget(row)

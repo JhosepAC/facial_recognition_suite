@@ -550,5 +550,21 @@
   "stats.backup_ok": "Database backup generated at {0}",
   "stats.export_error_title": "Export error",
   "stats.export_error_msg": "{0}",
-  "stats.backup_error_title": "Backup error"
+  "stats.backup_error_title": "Backup error",
+  "workspace.quick_navigation": "Go to module",
+  "workspace.find_module": "Search modules…",
+  "workspace.no_modules": "No matching modules. Try another name.",
+  "workspace.navigation_hint": "Tab / ↓ to choose · Enter to open · Esc to close",
+  "workspace.records": "Workspace",
+  "workspace.analysis": "Analysis",
+  "workspace.management": "Management",
+  "workspace.enroll": "Register a person",
+  "workspace.identify": "Search for a person",
+  "workspace.analyze_video": "Analyze a video",
+  "workspace.intro": "Start with a registration, find a person, or review a video. Your recent recognition activity appears below.",
+  "common.clear": "Clear",
+  "compare.empty_image": "Drop an image here",
+  "compare.detection_confidence": "Detection confidence {value}%",
+  "workspace.no_access": "No modules are assigned to your account. Contact an administrator to request access.",
+  "login.registration_permissions": "Your account starts with a standard role. An administrator can adjust its permissions."
 }

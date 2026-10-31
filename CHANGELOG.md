@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The version is managed in `app/__init__.py` (`__version__`).
 
+## [1.2.0] - 2026-10-31
+
+### Changed
+- Refine authentication with type-led, left-aligned headers and no decorative icons.
+- Redesign all desktop modules and authentication screens with neutral charcoal surfaces,
+  green accents, consistent control states, clearer tables, forms, and navigation groups.
+
+### Added
+- Permission-aware module search (Ctrl+K) and dashboard workflow shortcuts, in English and Spanish.
+
+### Fixed
+- Keep sidebar selection and workspace title synchronized across navigation entry points.
+- Enforce module permissions when navigating programmatically.
+
 ## [1.1.0] - 2026-09-13
 
 ### Added

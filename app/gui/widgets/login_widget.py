@@ -18,13 +18,13 @@ import base64
 import time
 
 from PySide6.QtCore import QEvent, QSettings, Qt
-from PySide6.QtGui import QAction, QPixmap
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QCheckBox, QDialog, QHBoxLayout, QLabel, QLineEdit, QPushButton,
     QVBoxLayout, QWidget,
 )
 
-from app.core.config import LOGO_PATH, settings
+from app.core.config import settings
 from app.core.exceptions import AuthenticationError, BioVisionError
 from app.core.logger import logger
 from app.core.security import DecryptionError, decrypt_value, encrypt_value
@@ -39,20 +39,6 @@ from app.services.auth_service import AuthService
 # ---------------------------------------------------------------------- #
 _APP_ORG = "FaceScan"
 _APP_NAME = "FaceScan"
-
-ACCENT_COLOR = "#3b82f6"  # clean blue, no green component
-
-
-def _logo_label(max_width: int = 240) -> QLabel:
-    """Label with the application logo (facescan.png), centered."""
-    label = QLabel()
-    pixmap = QPixmap(str(LOGO_PATH))
-    if not pixmap.isNull():
-        label.setPixmap(
-            pixmap.scaled(max_width, max_width, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        )
-        label.setAlignment(Qt.AlignCenter)
-    return label
 
 
 class RememberedCredentials:
@@ -194,32 +180,28 @@ def _make_username_input(placeholder: str | None = None) -> QLineEdit:
 def _policy_hint_label() -> QLabel:
     hint = QLabel(AuthService.password_policy_hint() + ".")
     hint.setWordWrap(True)
-    hint.setStyleSheet("color: #8f92a3; font-size: 11px;")
-    hint.setAlignment(Qt.AlignCenter)
+    hint.setStyleSheet("color: #a3a3a3; font-size: 11px;")
+    hint.setAlignment(Qt.AlignLeft)
     return hint
 
 
-def _auth_title(title: str, subtitle: str, icon: str = "shield") -> QVBoxLayout:
-    """Centered header (logo + title + subtitle), web-login style."""
+def _auth_title(title: str, subtitle: str) -> QVBoxLayout:
+    """Quiet, type-led authentication header aligned with the form."""
     layout = QVBoxLayout()
-    layout.setSpacing(6)
-
-    logo = QLabel()
-    logo.setAlignment(Qt.AlignCenter)
-    logo.setFixedHeight(46)
-    logo.setPixmap(icons.pixmap(icon, 40, ACCENT_COLOR))
-    layout.addWidget(logo)
+    layout.setSpacing(10)
 
     t = QLabel(title)
-    t.setAlignment(Qt.AlignCenter)
-    t.setStyleSheet("font-size: 20px; font-weight: 700;")
+    t.setAlignment(Qt.AlignLeft)
+    t.setWordWrap(True)
+    t.setStyleSheet("font-size: 26px; font-weight: 600;")
     layout.addWidget(t)
 
     s = QLabel(subtitle)
-    s.setAlignment(Qt.AlignCenter)
+    s.setAlignment(Qt.AlignLeft)
     s.setWordWrap(True)
-    s.setStyleSheet("color: #8f92a3;")
+    s.setStyleSheet("color: #a3a3a3;")
     layout.addWidget(s)
+    layout.addSpacing(14)
     return layout
 
 
@@ -239,11 +221,9 @@ class FirstRunSetupDialog(QDialog):
         root = QVBoxLayout(self)
         root.setContentsMargins(30, 34, 30, 30)
         root.setSpacing(14)
-        root.addWidget(_logo_label())
         root.addLayout(_auth_title(
             tr("sidebar.app_name"),
             tr("login.first_admin_subtitle"),
-            icon="admin_panel",
         ))
 
         self.username_edit = _make_username_input(tr("login.username"))
@@ -311,12 +291,9 @@ class RegistrationDialog(QDialog):
         root = QVBoxLayout(self)
         root.setContentsMargins(30, 34, 30, 30)
         root.setSpacing(14)
-        root.addWidget(_logo_label())
         root.addLayout(_auth_title(
             tr("login.create_account"),
-            "It will be created with a standard role; an administrator can adjust your "
-            "permissions later.",
-            icon="person_add",
+            tr("login.registration_permissions"),
         ))
 
         self.username_edit = _make_username_input(tr("login.username_min3"))
@@ -407,11 +384,9 @@ class LoginDialog(QDialog):
         root = QVBoxLayout(self)
         root.setContentsMargins(30, 34, 30, 30)
         root.setSpacing(14)
-        root.addWidget(_logo_label())
         root.addLayout(_auth_title(
-            tr("login.title_locked") if lock_mode else tr("sidebar.app_name"),
+            tr("login.title_locked") if lock_mode else tr("login.title_login"),
             tr("login.locked_subtitle") if lock_mode else tr("login.login_subtitle"),
-            icon="lock" if lock_mode else "shield",
         ))
 
         self.username_edit = _make_username_input()

@@ -78,8 +78,8 @@ class PhotoPreviewDialog(QDialog):
             attrs_label = QLabel(attributes_text)
             attrs_label.setWordWrap(True)
             attrs_label.setStyleSheet(
-                "color: #c9cbd6; font-size: 12px; padding: 6px 10px;"
-                "background-color: #1c1d24; border: 1px solid #2a2b33; border-radius: 6px;"
+                "color: #d4d4d4; font-size: 12px; padding: 6px 10px;"
+                "background-color: #1c1c1c; border: 1px solid #303030; border-radius: 6px;"
             )
             layout.addWidget(attrs_label)
 
@@ -114,7 +114,7 @@ class PhotoCard(QFrame):
         thumb.setFixedSize(PHOTO_CARD_WIDTH - 16, 120)
         thumb.setAlignment(Qt.AlignCenter)
         thumb.setCursor(Qt.PointingHandCursor)
-        thumb.setStyleSheet("background-color: #1a1b21; border-radius: 6px;")
+        thumb.setStyleSheet("background-color: #111111; border-radius: 6px;")
         thumb.setToolTip(tr("persons.view_large"))
         thumb.mousePressEvent = lambda _event: self.preview_requested.emit(self.photo_id)
         self._load_thumb(thumb, thumb_path)
@@ -129,7 +129,7 @@ class PhotoCard(QFrame):
             badges.addWidget(star)
         if calidad_score is not None:
             quality = QLabel(f"{calidad_score:.0f}/100")
-            quality.setStyleSheet("color: #8f92a3; font-size: 11px;")
+            quality.setStyleSheet("color: #a3a3a3; font-size: 11px;")
             quality.setToolTip(tr("persons.quality_score"))
             badges.addWidget(quality)
         badges.addStretch()
@@ -175,7 +175,7 @@ class PhotoCard(QFrame):
     def _load_thumb(self, label: QLabel, thumb_path: str | None) -> None:
         pix = QPixmap(thumb_path) if thumb_path and Path(thumb_path).exists() else QPixmap()
         if pix.isNull():
-            pix = icons.pixmap("image", 40, "#5a5d6e")
+            pix = icons.pixmap("image", 40, "#737373")
         else:
             pix = pix.scaled(PHOTO_CARD_WIDTH - 16, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         label.setPixmap(pix)
@@ -222,7 +222,7 @@ class PhotoGridWidget(QWidget):
         self.empty_label = QLabel(tr("persons.drop_hint"))
         self.empty_label.setAlignment(Qt.AlignCenter)
         self.empty_label.setStyleSheet(
-            "color: #8f92a3; background-color: #16171c; padding: 48px 16px;"
+            "color: #a3a3a3; background-color: #141414; padding: 48px 16px;"
         )
         self.empty_label.setWordWrap(True)
         self.grid.addWidget(self.empty_label, 0, 0)
@@ -297,12 +297,12 @@ class CapturePhotoDialog(QDialog):
         layout.setSpacing(12)
 
         self.video_label = QLabel(icons.status_html(
-            "videocam", tr("persons.camera_preparing"), "#8f92a3", 18))
+            "videocam", tr("persons.camera_preparing"), "#a3a3a3", 18))
         self.video_label.setAlignment(Qt.AlignCenter)
         self.video_label.setMinimumSize(640, 400)
         self.video_label.setStyleSheet(
-            "color: #8f92a3; background-color: #14151c;"
-            "border: 1px solid #2a2b33; border-radius: 8px;"
+            "color: #a3a3a3; background-color: #141414;"
+            "border: 1px solid #303030; border-radius: 8px;"
         )
         layout.addWidget(self.video_label, stretch=1)
 
@@ -353,7 +353,7 @@ class CapturePhotoDialog(QDialog):
             self._camera = None
         self._frame = None
         self.video_label.setText(icons.status_html(
-            "videocam", tr("persons.camera_preparing"), "#8f92a3", 18))
+            "videocam", tr("persons.camera_preparing"), "#a3a3a3", 18))
         self.video_label.setPixmap(QPixmap())
         self.capture_btn.setVisible(True)
         self.accept_btn.setVisible(False)
@@ -493,19 +493,28 @@ class PersonManagementWidget(QWidget):
         self._add_btn.setText(tr("persons.add_photos_btn"))
         self._photos_hint.setText(tr("persons.photos_hint"))
         self._update_photo_count()
+        for label, key, suffix in self._field_labels:
+            label.setText(tr(key) + suffix)
+        for label, key in self._section_labels:
+            label.setText(tr(key))
         self.sexo_combo.setItemText(1, tr("persons.male"))
         self.sexo_combo.setItemText(2, tr("persons.female"))
         self.sexo_combo.setItemText(3, tr("persons.other"))
 
     # ------------------------------------------------------------------ #
     def _build_ui(self) -> None:
+        self._field_labels = []
+        self._section_labels = []
         root = QVBoxLayout(self)
         root.setContentsMargins(24, 24, 24, 24)
         root.setSpacing(16)
         root.addLayout(self._build_header())
 
         splitter = QSplitter(Qt.Horizontal)
-        splitter.setStyleSheet("QSplitter::handle { background-color: #1e1f26; }")
+        splitter.setProperty("stackBelowWidth", 1000)
+        splitter.setChildrenCollapsible(False)
+        splitter.setHandleWidth(12)
+        splitter.setStyleSheet("QSplitter::handle { background-color: #141414; }")
         splitter.addWidget(self._build_form_panel())
         splitter.addWidget(self._build_photos_panel())
         splitter.setStretchFactor(0, 0)
@@ -516,13 +525,13 @@ class PersonManagementWidget(QWidget):
     def _build_header(self) -> QHBoxLayout:
         header = QHBoxLayout()
         header.setSpacing(12)
-        header.addWidget(icons.icon_label("person_add", 26, "#6fa8ff"))
+        header.addWidget(icons.icon_label("person_add", 26, "#65dca5"))
         title_col = QVBoxLayout()
         title_col.setSpacing(2)
         title = QLabel(tr("persons.title"))
         title.setStyleSheet("font-size: 22px; font-weight: 700;")
         subtitle = QLabel(tr("persons.subtitle"))
-        subtitle.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        subtitle.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         self._header_title = title
         self._header_subtitle = subtitle
         title_col.addWidget(title)
@@ -532,13 +541,19 @@ class PersonManagementWidget(QWidget):
         return header
 
     # ------------------------------------------------------------------ #
-    def _section_label(self, text: str) -> QLabel:
-        label = QLabel(text.upper())
+    def _section_label(self, key: str) -> QLabel:
+        label = QLabel(tr(key))
+        self._section_labels.append((label, key))
         label.setStyleSheet(
-            "color: #6fa8ff; font-size: 11px; font-weight: 700;"
-            "letter-spacing: 1px; margin-top: 6px;"
+            "color: #d4d4d4; font-size: 13px; font-weight: 600; margin-top: 12px;"
         )
         return label
+
+    def _add_field(self, form, key, field, suffix="") -> None:
+        label = QLabel(tr(key) + suffix)
+        label.setBuddy(field)
+        self._field_labels.append((label, key, suffix))
+        form.addRow(label, field)
 
     def _build_form_panel(self) -> QFrame:
         frame = QFrame()
@@ -554,7 +569,7 @@ class PersonManagementWidget(QWidget):
         layout.addWidget(form_title)
 
         required_hint = QLabel(tr("persons.required_tip"))
-        required_hint.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        required_hint.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         self._required_hint = required_hint
         layout.addWidget(required_hint)
 
@@ -566,42 +581,42 @@ class PersonManagementWidget(QWidget):
         self.edad_spin = QSpinBox()
         self.edad_spin.setRange(0, 120)
 
-        layout.addWidget(self._section_label(tr("persons.identity")))
+        layout.addWidget(self._section_label("persons.identity"))
         id_form = QFormLayout()
         id_form.setSpacing(8)
-        id_form.addRow(tr("persons.nombre") + " *", self.nombre_edit)
-        id_form.addRow(tr("persons.apellidos") + " *", self.apellidos_edit)
-        id_form.addRow(tr("persons.alias"), self.alias_edit)
-        id_form.addRow(tr("persons.sexo"), self.sexo_combo)
-        id_form.addRow(tr("persons.edad_aproximada"), self.edad_spin)
+        self._add_field(id_form, "persons.nombre", self.nombre_edit, " *")
+        self._add_field(id_form, "persons.apellidos", self.apellidos_edit, " *")
+        self._add_field(id_form, "persons.alias", self.alias_edit, "")
+        self._add_field(id_form, "persons.sexo", self.sexo_combo, "")
+        self._add_field(id_form, "persons.edad_aproximada", self.edad_spin, "")
         layout.addLayout(id_form)
 
         self.empresa_edit = QLineEdit()
         self.departamento_edit = QLineEdit()
         self.cargo_edit = QLineEdit()
 
-        layout.addWidget(self._section_label(tr("persons.work")))
+        layout.addWidget(self._section_label("persons.work"))
         work_form = QFormLayout()
         work_form.setSpacing(8)
-        work_form.addRow(tr("persons.empresa"), self.empresa_edit)
-        work_form.addRow(tr("persons.departamento"), self.departamento_edit)
-        work_form.addRow(tr("persons.cargo"), self.cargo_edit)
+        self._add_field(work_form, "persons.empresa", self.empresa_edit, "")
+        self._add_field(work_form, "persons.departamento", self.departamento_edit, "")
+        self._add_field(work_form, "persons.cargo", self.cargo_edit, "")
         layout.addLayout(work_form)
 
         self.telefono_edit = QLineEdit()
         self.correo_edit = QLineEdit()
 
-        layout.addWidget(self._section_label(tr("persons.contact")))
+        layout.addWidget(self._section_label("persons.contact"))
         contact_form = QFormLayout()
         contact_form.setSpacing(8)
-        contact_form.addRow(tr("persons.telefono"), self.telefono_edit)
-        contact_form.addRow(tr("persons.correo"), self.correo_edit)
+        self._add_field(contact_form, "persons.telefono", self.telefono_edit, "")
+        self._add_field(contact_form, "persons.correo", self.correo_edit, "")
         layout.addLayout(contact_form)
 
         self.observaciones_edit = QTextEdit()
         self.observaciones_edit.setMaximumHeight(90)
 
-        layout.addWidget(self._section_label(tr("persons.notes")))
+        layout.addWidget(self._section_label("persons.notes"))
         layout.addWidget(self.observaciones_edit)
 
         buttons = QHBoxLayout()
@@ -644,13 +659,13 @@ class PersonManagementWidget(QWidget):
         header.addWidget(title)
 
         self.photo_count_label = QLabel(tr("persons.photos_none"))
-        self.photo_count_label.setStyleSheet("color: #8f92a3;")
+        self.photo_count_label.setStyleSheet("color: #a3a3a3;")
         header.addWidget(self.photo_count_label)
         header.addStretch()
 
         self._capture_btn = QPushButton(tr("persons.webcam"))
         self._capture_btn.setObjectName("SecondaryButton")
-        self._capture_btn.setIcon(icons.icon("camera", 16, "#b7b9c4"))
+        self._capture_btn.setIcon(icons.icon("camera", 16, "#b4b4b4"))
         self._capture_btn.setCursor(Qt.PointingHandCursor)
         self._capture_btn.clicked.connect(self._capture_webcam)
         header.addWidget(self._capture_btn)
@@ -669,12 +684,12 @@ class PersonManagementWidget(QWidget):
         self.photos_scroll = QScrollArea()
         self.photos_scroll.setWidgetResizable(True)
         self.photos_scroll.setFrameShape(QFrame.NoFrame)
-        self.photos_scroll.setStyleSheet("QScrollArea { background-color: #16171c; }")
+        self.photos_scroll.setStyleSheet("QScrollArea { background-color: #141414; }")
         self.photos_scroll.setWidget(self.photo_grid)
         layout.addWidget(self.photos_scroll, stretch=1)
 
         hint = QLabel(tr("persons.photos_hint"))
-        hint.setStyleSheet("color: #8f92a3;")
+        hint.setStyleSheet("color: #a3a3a3;")
         hint.setWordWrap(True)
         self._photos_hint = hint
         layout.addWidget(hint)

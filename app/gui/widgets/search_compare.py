@@ -169,7 +169,7 @@ class PhotoPickerCard(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("Card")
-        self.setStyleSheet("PhotoPickerCard { background-color: #16171c; }")
+        self.setStyleSheet("PhotoPickerCard { background-color: #141414; }")
         self.setAcceptDrops(True)
         self.setMinimumHeight(230)
         self.setCursor(Qt.PointingHandCursor)
@@ -184,7 +184,7 @@ class PhotoPickerCard(QFrame):
 
         self.label = QLabel("Click or drag the search photo here")
         self.label.setAlignment(Qt.AlignCenter)
-        self.label.setStyleSheet("color: #8f92a3;")
+        self.label.setStyleSheet("color: #a3a3a3;")
         self.label.setWordWrap(True)
         layout.addWidget(self.label)
 
@@ -271,7 +271,8 @@ class PersonSearchWidget(QWidget):
              tr("persons.empresa"), tr("search.result_match"), tr("search.result_state")])
         if hasattr(self, "_attr_name_items"):
             for field, name in self._attr_name_items.items():
-                name.setText(tr(ATTR_LABEL_KEYS[field]))
+                label_keys = {**ATTR_LABEL_KEYS, **ATTR_AGEN_KEYS, **ATTR_COLOR_KEYS}
+                name.setText(tr(label_keys[field]))
         self._retranslate_attrs_placeholder()
         for combo in (getattr(self, "attrs_present_combo", None),
                       getattr(self, "attrs_absent_combo", None)):
@@ -296,7 +297,7 @@ class PersonSearchWidget(QWidget):
             for field in list(ATTR_FIELDS) + ["edad", "genero", "color_ojos", "color_pelo"]:
                 label = self._attr_items[field]
                 label.setText("—")
-                label.setStyleSheet("color: #6b6e7d; font-size: 12px;")
+                label.setStyleSheet("color: #949494; font-size: 12px;")
             return
         self._attr_placeholder.setVisible(False)
         for field in ATTR_FIELDS:
@@ -304,8 +305,8 @@ class PersonSearchWidget(QWidget):
             present = bool(getattr(attrs, field))
             label.setText(tr("attrs.yes") if present else tr("attrs.no"))
             label.setStyleSheet(
-                "color: #2ecc71; font-size: 12px;" if present
-                else "color: #6b6e7d; font-size: 12px;")
+                "color: #3ecf8e; font-size: 12px;" if present
+                else "color: #949494; font-size: 12px;")
         edad = attrs.edad
         self._attr_items["edad"].setText(str(edad) if edad else "—")
         genero = attrs.genero
@@ -316,13 +317,13 @@ class PersonSearchWidget(QWidget):
             color = getattr(attrs, key)
             self._attr_items[key].setText(color if color else "—")
         for key in ("edad", "genero", "color_ojos", "color_pelo"):
-            self._attr_items[key].setStyleSheet("color: #e6e6e6; font-size: 12px;")
+            self._attr_items[key].setStyleSheet("color: #ededed; font-size: 12px;")
         for key in ATTR_COLOR_KEYS:
             color = getattr(attrs, key)
             if color is None:
-                self._attr_items[key].setStyleSheet("color: #6b6e7d; font-size: 12px;")
+                self._attr_items[key].setStyleSheet("color: #949494; font-size: 12px;")
             else:
-                self._attr_items[key].setStyleSheet("color: #e6e6e6; font-size: 12px;")
+                self._attr_items[key].setStyleSheet("color: #ededed; font-size: 12px;")
 
     # ------------------------------------------------------------------ #
     def _build_ui(self) -> None:
@@ -331,13 +332,13 @@ class PersonSearchWidget(QWidget):
         root.setSpacing(16)
 
         header = QHBoxLayout()
-        header.addWidget(icons.icon_label("search", 22, "#6fa8ff"))
+        header.addWidget(icons.icon_label("search", 22, "#65dca5"))
         title_col = QVBoxLayout()
         title_col.setSpacing(0)
         self._title = QLabel(tr("search.title"))
         self._title.setStyleSheet("font-size: 22px; font-weight: 700;")
         self._subtitle = QLabel(tr("search.subtitle"))
-        self._subtitle.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self._subtitle.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         title_col.addWidget(self._title)
         title_col.addWidget(self._subtitle)
         header.addLayout(title_col)
@@ -345,7 +346,7 @@ class PersonSearchWidget(QWidget):
         root.addLayout(header)
 
         splitter = QSplitter(Qt.Horizontal)
-        splitter.setStyleSheet("QSplitter::handle { background-color: #1e1f26; }")
+        splitter.setStyleSheet("QSplitter::handle { background-color: #141414; }")
         splitter.addWidget(self._build_search_panel())
         splitter.addWidget(self._build_detail_panel())
         splitter.setStretchFactor(0, 3)
@@ -363,6 +364,7 @@ class PersonSearchWidget(QWidget):
         lay.setSpacing(10)
 
         self.tabs = QTabWidget()
+        self.tabs.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         self.tabs.addTab(self._build_text_tab(), tr("search.tab_text"))
         self.tabs.addTab(self._build_photo_tab(), tr("search.tab_photo"))
         lay.addWidget(self.tabs)
@@ -372,7 +374,7 @@ class PersonSearchWidget(QWidget):
         self._results_title.setStyleSheet("font-weight: 700; font-size: 15px;")
         results_header.addWidget(self._results_title)
         self.results_count_label = QLabel("0")
-        self.results_count_label.setStyleSheet("color: #8f92a3;")
+        self.results_count_label.setStyleSheet("color: #a3a3a3;")
         results_header.addWidget(self.results_count_label)
         results_header.addStretch()
         lay.addLayout(results_header)
@@ -382,6 +384,7 @@ class PersonSearchWidget(QWidget):
             [tr("search.img"), tr("search.result_name"), tr("persons.alias"),
              tr("persons.empresa"), tr("search.result_match"), tr("search.result_state")])
         self.results_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.results_table.horizontalHeader().setMinimumSectionSize(85)
         self.results_table.verticalHeader().setVisible(False)
         self.results_table.verticalHeader().setDefaultSectionSize(40)
         self.results_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -413,7 +416,7 @@ class PersonSearchWidget(QWidget):
 
         self._clear_btn = QPushButton(tr("common.clear"))
         self._clear_btn.setObjectName("SecondaryButton")
-        self._clear_btn.setIcon(icons.icon("close", 14, "#b7b9c4"))
+        self._clear_btn.setIcon(icons.icon("close", 14, "#b4b4b4"))
         self._clear_btn.clicked.connect(self._clear_search)
         row.addWidget(self._clear_btn)
         lay.addLayout(row)
@@ -431,7 +434,7 @@ class PersonSearchWidget(QWidget):
 
         attr_filter_row = QHBoxLayout()
         present_label = QLabel(tr("search.filter_present"))
-        present_label.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        present_label.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         attr_filter_row.addWidget(present_label)
         self.attrs_present_combo = QComboBox()
         self._fill_attr_combo(self.attrs_present_combo)
@@ -439,7 +442,7 @@ class PersonSearchWidget(QWidget):
         attr_filter_row.addWidget(self.attrs_present_combo)
 
         absent_label = QLabel(tr("search.filter_absent"))
-        absent_label.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        absent_label.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         attr_filter_row.addWidget(absent_label)
         self.attrs_absent_combo = QComboBox()
         self._fill_attr_combo(self.attrs_absent_combo)
@@ -452,7 +455,7 @@ class PersonSearchWidget(QWidget):
         self._color_combos: dict[str, QComboBox] = {}
         for field in ATTR_COLOR_KEYS:
             label = QLabel(tr(ATTR_COLOR_KEYS[field]))
-            label.setStyleSheet("color: #8f92a3; font-size: 12px;")
+            label.setStyleSheet("color: #a3a3a3; font-size: 12px;")
             color_filter_row.addWidget(label)
             combo = QComboBox()
             self._fill_color_combo(combo, field)
@@ -486,7 +489,7 @@ class PersonSearchWidget(QWidget):
         lay.addWidget(self.photo_picker, stretch=1)
 
         self.photo_file_label = QLabel("")
-        self.photo_file_label.setStyleSheet("color: #6b6e7d; font-size: 12px;")
+        self.photo_file_label.setStyleSheet("color: #949494; font-size: 12px;")
         self.photo_file_label.setWordWrap(True)
         lay.addWidget(self.photo_file_label)
 
@@ -497,13 +500,13 @@ class PersonSearchWidget(QWidget):
         lay.addWidget(self.photo_search_btn)
 
         self.photo_status_label = QLabel("")
-        self.photo_status_label.setStyleSheet("color: #8f92a3;")
+        self.photo_status_label.setStyleSheet("color: #a3a3a3;")
         self.photo_status_label.setWordWrap(True)
         lay.addWidget(self.photo_status_label)
 
         self.photo_clear_btn = QPushButton(tr("search.clear_photo"))
         self.photo_clear_btn.setObjectName("SecondaryButton")
-        self.photo_clear_btn.setIcon(icons.icon("close", 14, "#b7b9c4"))
+        self.photo_clear_btn.setIcon(icons.icon("close", 14, "#b4b4b4"))
         self.photo_clear_btn.setEnabled(False)
         self.photo_clear_btn.clicked.connect(self._clear_photo)
         lay.addWidget(self.photo_clear_btn)
@@ -524,8 +527,8 @@ class PersonSearchWidget(QWidget):
         self.avatar_label = QLabel()
         self.avatar_label.setFixedSize(96, 96)
         self.avatar_label.setAlignment(Qt.AlignCenter)
-        self.avatar_label.setStyleSheet("background-color: #1a1b21; border-radius: 12px;")
-        self.avatar_label.setPixmap(icons.pixmap("person", 44, "#8f92a3"))
+        self.avatar_label.setStyleSheet("background-color: #111111; border-radius: 12px;")
+        self.avatar_label.setPixmap(icons.pixmap("person", 44, "#a3a3a3"))
         top.addWidget(self.avatar_label)
 
         name_col = QVBoxLayout()
@@ -536,7 +539,7 @@ class PersonSearchWidget(QWidget):
         name_col.addWidget(self.detail_name_label)
         self.detail_subtitle_label = QLabel(
             "Usa los resultados de la búsqueda para ver la ficha completa.")
-        self.detail_subtitle_label.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self.detail_subtitle_label.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         self.detail_subtitle_label.setWordWrap(True)
         name_col.addWidget(self.detail_subtitle_label)
         top.addLayout(name_col, stretch=1)
@@ -544,7 +547,7 @@ class PersonSearchWidget(QWidget):
         self.detail_edit_btn = QPushButton()
         self.detail_edit_btn.setObjectName("SecondaryButton")
         self.detail_edit_btn.setText("Editar")
-        self.detail_edit_btn.setIcon(icons.icon("edit", 15, "#b7b9c4"))
+        self.detail_edit_btn.setIcon(icons.icon("edit", 15, "#b4b4b4"))
         self.detail_edit_btn.setEnabled(False)
         self.detail_edit_btn.clicked.connect(self._enable_edition)
         top.addWidget(self.detail_edit_btn)
@@ -558,7 +561,7 @@ class PersonSearchWidget(QWidget):
 
         self.detail_status = QLabel("Edición en tiempo real activada.")
         self.detail_status.setWordWrap(True)
-        self.detail_status.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self.detail_status.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         editor_lay.addWidget(self.detail_status)
 
         form_lay = QGridLayout()
@@ -567,7 +570,7 @@ class PersonSearchWidget(QWidget):
 
         def put(form, row: int, col: int, label: str, widget: QWidget) -> None:
             lab = QLabel(label)
-            lab.setStyleSheet("color: #8f92a3; font-size: 12px;")
+            lab.setStyleSheet("color: #a3a3a3; font-size: 12px;")
             lab.setAlignment(Qt.AlignTop | Qt.AlignLeft)
             form.addWidget(lab, row * 2, col, alignment=Qt.AlignTop)
             form.addWidget(widget, row * 2 + 1, col)
@@ -587,7 +590,7 @@ class PersonSearchWidget(QWidget):
         put(form_lay, 1, 1, "Sexo", self.det_sexo)
 
         self.det_edad_lab = QLabel("Edad aprox.")
-        self.det_edad_lab.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self.det_edad_lab.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         form_lay.addWidget(self.det_edad_lab, 4, 0, alignment=Qt.AlignTop)
         form_lay.addWidget(self.det_edad, 5, 0)
 
@@ -630,9 +633,9 @@ class PersonSearchWidget(QWidget):
 
         def add_field(row: int, col: int, key: str) -> None:
             k = QLabel(key)
-            k.setStyleSheet("color: #8f92a3; font-size: 12px;")
+            k.setStyleSheet("color: #a3a3a3; font-size: 12px;")
             v = QLabel("—")
-            v.setStyleSheet("color: #e6e6e6; font-size: 13px;")
+            v.setStyleSheet("color: #ededed; font-size: 13px;")
             v.setWordWrap(True)
             fields_lay.addWidget(k, row * 2, col, alignment=Qt.AlignTop)
             fields_lay.addWidget(v, row * 2 + 1, col, alignment=Qt.AlignTop)
@@ -654,7 +657,7 @@ class PersonSearchWidget(QWidget):
         attrs_lay.addWidget(attrs_title)
         self._attr_placeholder = QLabel(tr("attrs.placeholder"))
         self._attr_placeholder.setWordWrap(True)
-        self._attr_placeholder.setStyleSheet("color: #6b6e7d; font-size: 12px;")
+        self._attr_placeholder.setStyleSheet("color: #949494; font-size: 12px;")
         attrs_lay.addWidget(self._attr_placeholder)
         self._attr_items: dict[str, QLabel] = {}
         self._attr_name_items: dict[str, QLabel] = {}
@@ -663,27 +666,27 @@ class PersonSearchWidget(QWidget):
         attr_grid.setVerticalSpacing(4)
         for i, field in enumerate(ATTR_FIELDS):
             name = QLabel(tr(ATTR_LABEL_KEYS[field]))
-            name.setStyleSheet("color: #8f92a3; font-size: 12px;")
+            name.setStyleSheet("color: #a3a3a3; font-size: 12px;")
             value = QLabel("—")
-            value.setStyleSheet("color: #e6e6e6; font-size: 12px;")
+            value.setStyleSheet("color: #ededed; font-size: 12px;")
             attr_grid.addWidget(name, i // 2, (i % 2) * 2, alignment=Qt.AlignRight)
             attr_grid.addWidget(value, i // 2, (i % 2) * 2 + 1)
             self._attr_name_items[field] = name
             self._attr_items[field] = value
         for i, key in enumerate(("edad", "genero"), start=len(ATTR_FIELDS)):
             name = QLabel(tr(ATTR_AGEN_KEYS[key]))
-            name.setStyleSheet("color: #8f92a3; font-size: 12px;")
+            name.setStyleSheet("color: #a3a3a3; font-size: 12px;")
             value = QLabel("—")
-            value.setStyleSheet("color: #e6e6e6; font-size: 12px;")
+            value.setStyleSheet("color: #ededed; font-size: 12px;")
             attr_grid.addWidget(name, i // 2, (i % 2) * 2, alignment=Qt.AlignRight)
             attr_grid.addWidget(value, i // 2, (i % 2) * 2 + 1)
             self._attr_name_items[key] = name
             self._attr_items[key] = value
         for i, key in enumerate(ATTR_COLOR_KEYS, start=len(ATTR_FIELDS) + 2):
             name = QLabel(tr(ATTR_COLOR_KEYS[key]))
-            name.setStyleSheet("color: #8f92a3; font-size: 12px;")
+            name.setStyleSheet("color: #a3a3a3; font-size: 12px;")
             value = QLabel("—")
-            value.setStyleSheet("color: #e6e6e6; font-size: 12px;")
+            value.setStyleSheet("color: #ededed; font-size: 12px;")
             attr_grid.addWidget(name, i // 2, (i % 2) * 2, alignment=Qt.AlignRight)
             attr_grid.addWidget(value, i // 2, (i % 2) * 2 + 1)
             self._attr_name_items[key] = name
@@ -696,7 +699,7 @@ class PersonSearchWidget(QWidget):
         photos_title.setStyleSheet("font-size: 15px; font-weight: 700;")
         photos_header.addWidget(photos_title)
         self.detail_photo_count = QLabel("0 fotos")
-        self.detail_photo_count.setStyleSheet("color: #8f92a3;")
+        self.detail_photo_count.setStyleSheet("color: #a3a3a3;")
         photos_header.addWidget(self.detail_photo_count)
         photos_header.addStretch()
         self.add_photos_btn = QPushButton("+ Añadir fotos")
@@ -718,7 +721,7 @@ class PersonSearchWidget(QWidget):
         self.photos_scroll = QScrollArea()
         self.photos_scroll.setWidgetResizable(True)
         self.photos_scroll.setFrameShape(QFrame.NoFrame)
-        self.photos_scroll.setStyleSheet("QScrollArea { background-color: #16171c; }")
+        self.photos_scroll.setStyleSheet("QScrollArea { background-color: #141414; }")
         self.photos_scroll.setWidget(self.photo_grid)
         self.photos_scroll.setMinimumHeight(PHOTO_CARD_HEIGHT + 24)
         lay.addWidget(self.photos_scroll, stretch=0)
@@ -727,7 +730,7 @@ class PersonSearchWidget(QWidget):
             "Clic en una miniatura para verla en grande. La estrella marca la foto principal. "
             "El dataset se muestra en rejilla de 3 columnas; si hay más de 3 filas, "
             "se desplaza dentro del propio contenedor.")
-        hint.setStyleSheet("color: #6b6e7d; font-size: 11px;")
+        hint.setStyleSheet("color: #949494; font-size: 11px;")
         hint.setWordWrap(True)
         lay.addWidget(hint)
 
@@ -906,7 +909,7 @@ class PersonSearchWidget(QWidget):
             thumb = r.get("thumb")
             pix = QPixmap(thumb) if thumb and Path(thumb).exists() else QPixmap()
             if pix.isNull():
-                item_foto.setIcon(icons.icon("person", 18, "#8f92a3"))
+                item_foto.setIcon(icons.icon("person", 18, "#a3a3a3"))
             else:
                 item_foto.setIcon(QIcon(
                     pix.scaled(34, 34, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)))
@@ -950,7 +953,7 @@ class PersonSearchWidget(QWidget):
             return
         self._query_path = path
         self.photo_picker.set_image(QPixmap(path))
-        self.photo_file_label.setText(icons.status_html("image", Path(path).name, "#b7b9c4"))
+        self.photo_file_label.setText(icons.status_html("image", Path(path).name, "#b4b4b4"))
         self.photo_search_btn.setEnabled(True)
         self.photo_clear_btn.setEnabled(True)
         self.photo_status_label.setText("")
@@ -976,7 +979,7 @@ class PersonSearchWidget(QWidget):
             return
         self.photo_search_btn.setEnabled(False)
         self.photo_status_label.setText(
-            icons.status_html("sync", "Iniciando búsqueda...", "#6fa8ff"))
+            icons.status_html("sync", "Iniciando búsqueda...", "#65dca5"))
 
         self._photo_worker = PhotoSearchWorker(self._query_path, usuario=self.username)
         self._photo_worker.step.connect(self._on_photo_step)
@@ -986,7 +989,7 @@ class PersonSearchWidget(QWidget):
         self._photo_worker.start()
 
     def _on_photo_step(self, step: str) -> None:
-        self.photo_status_label.setText(icons.status_html("sync", step, "#6fa8ff"))
+        self.photo_status_label.setText(icons.status_html("sync", step, "#65dca5"))
 
     def _on_photo_search_done(self, data: dict) -> None:
         image = data["image"]
@@ -1134,12 +1137,12 @@ class PersonSearchWidget(QWidget):
             return
         self._set_editing(True)
         self.detail_status.setText("Editando en tiempo real — cada cambio quedará guardado.")
-        self.detail_status.setStyleSheet("color: #6fa8ff; font-size: 12px;")
+        self.detail_status.setStyleSheet("color: #65dca5; font-size: 12px;")
 
     def _disable_edition(self) -> None:
         self._set_editing(False)
         self.detail_status.setText("Datos en modo lectura. Pulsa «Editar» para modificarlos.")
-        self.detail_status.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self.detail_status.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         if self._detail_uuid:
             self._load_person(self._detail_uuid)
 
@@ -1205,7 +1208,7 @@ class PersonSearchWidget(QWidget):
             self.results_table.item(row, 3).setText(empresa)
             pix = QPixmap(thumb) if thumb and Path(thumb).exists() else QPixmap()
             if pix.isNull():
-                self.results_table.item(row, 0).setIcon(icons.icon("person", 18, "#8f92a3"))
+                self.results_table.item(row, 0).setIcon(icons.icon("person", 18, "#a3a3a3"))
             else:
                 self.results_table.item(row, 0).setIcon(QIcon(
                     pix.scaled(34, 34, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)))
@@ -1260,7 +1263,7 @@ class PersonSearchWidget(QWidget):
     def _set_avatar(self, avatar_path: str | None) -> None:
         pix = QPixmap(avatar_path) if avatar_path and Path(avatar_path).exists() else QPixmap()
         if pix.isNull():
-            self.avatar_label.setPixmap(icons.pixmap("person", 44, "#8f92a3"))
+            self.avatar_label.setPixmap(icons.pixmap("person", 44, "#a3a3a3"))
         else:
             self.avatar_label.setPixmap(pix.scaled(
                 96, 96, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation))
@@ -1522,7 +1525,7 @@ class ScanCanvas(QWidget):
     def paintEvent(self, event) -> None:  # noqa: N802
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        p.fillRect(self.rect(), QColor("#16171c"))
+        p.fillRect(self.rect(), QColor("#141414"))
 
         if self._pix is None or self._pix.isNull():
             self._draw_placeholder(p)
@@ -1548,7 +1551,7 @@ class ScanCanvas(QWidget):
                 Qt.AlignmentFlag.AlignLeft, self._image_info,
             )
         if self._face_score is not None:
-            badge = f"CONFIANZA {self._face_score * 100:.1f}%"
+            badge = tr("compare.detection_confidence", value=f"{self._face_score * 100:.1f}")
             p.setFont(QFont("Consolas", 9))
             p.setPen(QColor(self._accent))
             p.drawText(
@@ -1558,7 +1561,7 @@ class ScanCanvas(QWidget):
 
     def _draw_placeholder(self, p: QPainter) -> None:
         rect = QRectF(self.rect()).adjusted(14, 14, -14, -14)
-        pen = QPen(QColor("#34353f"), 1, Qt.PenStyle.DashLine)
+        pen = QPen(QColor("#404040"), 1, Qt.PenStyle.DashLine)
         p.setPen(pen)
         p.drawRect(rect)
 
@@ -1567,10 +1570,10 @@ class ScanCanvas(QWidget):
         p.drawText(QRectF(0, self.height() / 2 - 56, self.width(), 60),
                    Qt.AlignmentFlag.AlignCenter, icons._glyph("crop_free"))
 
-        p.setFont(QFont("Consolas", 10))
-        p.setPen(QColor("#5a5d6e"))
+        p.setFont(QFont("Segoe UI", 10))
+        p.setPen(QColor("#a3a3a3"))
         p.drawText(QRectF(0, self.height() / 2 + 8, self.width(), 20),
-                   Qt.AlignmentFlag.AlignCenter, "SIN IMAGEN")
+                   Qt.AlignmentFlag.AlignCenter, tr("compare.empty_image"))
 
     def _draw_reticle(self, p: QPainter, rect: QRectF, color: str) -> None:
         pen = QPen(QColor(color), 2)
@@ -1622,7 +1625,7 @@ class ScanCanvas(QWidget):
         p.setFont(QFont("Consolas", 8))
         p.setPen(QColor(icons.COLOR_OK))
         top = max(ir.top(), ry - 20)
-        p.drawText(QRectF(rx, top, rw, 16), Qt.AlignmentFlag.AlignCenter, "ROSTRO DETECTADO")
+        p.drawText(QRectF(rx, top, rw, 16), Qt.AlignmentFlag.AlignCenter, tr("compare.face_detected"))
 
 
 class ScanFrame(QFrame):
@@ -1651,7 +1654,7 @@ class ScanFrame(QFrame):
         layout.addWidget(self.canvas, stretch=1)
 
         self.file_label = QLabel(tr("compare.no_image_selected"))
-        self.file_label.setStyleSheet("color: #6b6e7d; font-size: 12px;")
+        self.file_label.setStyleSheet("color: #949494; font-size: 12px;")
         self.file_label.setWordWrap(True)
         layout.addWidget(self.file_label)
 
@@ -1696,7 +1699,7 @@ class SimilarityGauge(QWidget):
         self.setFixedSize(240, 240)
         self._target = 0.0
         self._display = 0.0
-        self._color = QColor("#8f92a3")
+        self._color = QColor("#a3a3a3")
         self._timer = QTimer(self)
         self._timer.setInterval(16)
         self._timer.timeout.connect(self._step)
@@ -1710,7 +1713,7 @@ class SimilarityGauge(QWidget):
     def reset(self) -> None:
         self._target = 0.0
         self._display = 0.0
-        self._color = QColor("#8f92a3")
+        self._color = QColor("#a3a3a3")
         self._timer.stop()
         self.update()
 
@@ -1733,7 +1736,7 @@ class SimilarityGauge(QWidget):
         start = 225 * 16
         span = 270 * 16
 
-        p.setPen(QPen(QColor("#2a2b33"), pen_w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        p.setPen(QPen(QColor("#303030"), pen_w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
         p.drawArc(rect, start, span)
 
         p.setPen(QPen(self._color, pen_w, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
@@ -1744,9 +1747,9 @@ class SimilarityGauge(QWidget):
         p.drawText(QRectF(0, h / 2 - 54, w, 62), Qt.AlignmentFlag.AlignCenter,
                    f"{self._display:.1f}%")
 
-        p.setPen(QColor("#8f92a3"))
-        p.setFont(QFont("Consolas", 9))
-        p.drawText(QRectF(0, h / 2 + 14, w, 20), Qt.AlignmentFlag.AlignCenter, "SIMILITUD")
+        p.setPen(QColor("#a3a3a3"))
+        p.setFont(QFont("Segoe UI", 9))
+        p.drawText(QRectF(0, h / 2 + 14, w, 20), Qt.AlignmentFlag.AlignCenter, tr("compare.similarity"))
 
 
 class StepRow(QWidget):
@@ -1766,13 +1769,13 @@ class StepRow(QWidget):
     def set_state(self, state: str) -> None:
         if state == "done":
             self.dot.setPixmap(icons.pixmap("check_circle", 14, icons.COLOR_OK))
-            self.label.setStyleSheet("color: #e6e6e6;")
+            self.label.setStyleSheet("color: #ededed;")
         elif state == "error":
             self.dot.setPixmap(icons.pixmap("error", 14, icons.COLOR_ERROR))
             self.label.setStyleSheet(f"color: {icons.COLOR_ERROR};")
         else:
             self.dot.setPixmap(icons.pixmap("circle", 14, "#3a3c47"))
-            self.label.setStyleSheet("color: #6b6e7d;")
+            self.label.setStyleSheet("color: #949494;")
 
     def _set_dot_color(self, color: str) -> None:
         self.dot.setPixmap(icons.pixmap("circle", 14, color))
@@ -1813,7 +1816,7 @@ class StepList(QWidget):
             return
         self._active_index = index
         self._pulse_on = True
-        self._rows[index]._set_dot_color("#6fa8ff")
+        self._rows[index]._set_dot_color("#65dca5")
         self._pulse_timer.start()
 
     def mark_done(self, index: int) -> None:
@@ -1831,7 +1834,7 @@ class StepList(QWidget):
     def _pulse(self) -> None:
         self._pulse_on = not self._pulse_on
         if self._active_index >= 0:
-            color = "#6fa8ff" if self._pulse_on else "#2f6fed"
+            color = "#65dca5" if self._pulse_on else "#238b5d"
             self._rows[self._active_index]._set_dot_color(color)
 
 
@@ -1968,14 +1971,14 @@ class FaceCompareWidget(QWidget):
         layout.addLayout(header)
 
         self._subtitle = QLabel(tr("compare.subtitle"))
-        self._subtitle.setStyleSheet("color: #8f92a3;")
+        self._subtitle.setStyleSheet("color: #a3a3a3;")
         self._subtitle.setWordWrap(True)
         layout.addWidget(self._subtitle)
 
         # --- Center panel: A | gauge | B ---
         top = QHBoxLayout()
         top.setSpacing(14)
-        self.frame_a = ScanFrame("compare.image_a", "#6fa8ff", self._pick_a)
+        self.frame_a = ScanFrame("compare.image_a", "#65dca5", self._pick_a)
         self.frame_b = ScanFrame("compare.image_b", "#e8895c", self._pick_b)
         self.frame_a.image_dropped.connect(self._on_drop_a)
         self.frame_b.image_dropped.connect(self._on_drop_b)
@@ -2000,25 +2003,25 @@ class FaceCompareWidget(QWidget):
 
         self.swap_btn = QPushButton(tr("compare.swap"))
         self.swap_btn.setObjectName("SecondaryButton")
-        self.swap_btn.setIcon(icons.icon("swap_horiz", 16, "#b7b9c4"))
+        self.swap_btn.setIcon(icons.icon("swap_horiz", 16, "#b4b4b4"))
         self.swap_btn.clicked.connect(self._swap_ab)
         actions.addWidget(self.swap_btn)
 
         self.clear_btn = QPushButton(tr("common.clear"))
         self.clear_btn.setObjectName("SecondaryButton")
-        self.clear_btn.setIcon(icons.icon("refresh", 16, "#b7b9c4"))
+        self.clear_btn.setIcon(icons.icon("refresh", 16, "#b4b4b4"))
         self.clear_btn.clicked.connect(self._clear_all)
         actions.addWidget(self.clear_btn)
 
         self.export_btn = QPushButton(tr("compare.export"))
         self.export_btn.setObjectName("SecondaryButton")
-        self.export_btn.setIcon(icons.icon("download", 16, "#b7b9c4"))
+        self.export_btn.setIcon(icons.icon("download", 16, "#b4b4b4"))
         self.export_btn.setEnabled(False)
         self.export_btn.clicked.connect(self._export_report)
         actions.addWidget(self.export_btn)
 
         self.status_label = QLabel(tr("compare.ready"))
-        self.status_label.setStyleSheet("color: #8f92a3;")
+        self.status_label.setStyleSheet("color: #a3a3a3;")
         actions.addWidget(self.status_label, stretch=1)
         layout.addLayout(actions)
 
@@ -2039,12 +2042,12 @@ class FaceCompareWidget(QWidget):
         self.gauge_hint = QLabel("")
         self.gauge_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.gauge_hint.setWordWrap(True)
-        self.gauge_hint.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        self.gauge_hint.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         lay.addWidget(self.gauge_hint)
 
         self.attr_a_label = QLabel("")
         self.attr_a_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.attr_a_label.setStyleSheet("color: #6fa8ff; font-size: 12px;")
+        self.attr_a_label.setStyleSheet("color: #65dca5; font-size: 12px;")
         lay.addWidget(self.attr_a_label)
 
         self.attr_b_label = QLabel("")
@@ -2055,7 +2058,7 @@ class FaceCompareWidget(QWidget):
         self.elapsed_label = QLabel("")
         self.elapsed_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.elapsed_label.setStyleSheet(
-            "font-family: 'Consolas'; color: #8f92a3; font-size: 12px;")
+            "font-family: 'Consolas'; color: #a3a3a3; font-size: 12px;")
         lay.addWidget(self.elapsed_label)
 
         lay.addStretch()
@@ -2114,7 +2117,7 @@ class FaceCompareWidget(QWidget):
     def _metric_value(self) -> QLabel:
         label = QLabel("—")
         label.setStyleSheet(
-            "color: #e6e6e6; font-family: 'Consolas','Cascadia Mono','Courier New',monospace;"
+            "color: #ededed; font-family: 'Consolas','Cascadia Mono','Courier New',monospace;"
             "font-size: 13px;"
         )
         return label
@@ -2125,7 +2128,7 @@ class FaceCompareWidget(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(8)
         name_label = QLabel(tr(key))
-        name_label.setStyleSheet("color: #8f92a3; font-size: 12px;")
+        name_label.setStyleSheet("color: #a3a3a3; font-size: 12px;")
         lay.addWidget(name_label)
         lay.addStretch()
         lay.addWidget(value)
@@ -2438,11 +2441,11 @@ class FaceCompareWidget(QWidget):
         color = QColor(icons.COLOR_OK if es_misma else icons.COLOR_ERROR)
         pct = result["porcentaje_similitud"]
 
-        BG = QColor("#14151a")
-        CARD = QColor("#1c1d24")
+        BG = QColor("#171717")
+        CARD = QColor("#1c1c1c")
         BORDER = QColor("#2b2c36")
         TEXT = QColor("#ffffff")
-        MUTED = QColor("#8f92a3")
+        MUTED = QColor("#a3a3a3")
         FAINT = QColor("#5b5e6b")
         ACCENT = QColor("#4f8cff")
 
@@ -2643,7 +2646,7 @@ class FaceCompareWidget(QWidget):
         bar_y = 792
 
         p.setPen(QPen(BORDER, 1))
-        p.setBrush(QColor("#1e1f26"))
+        p.setBrush(QColor("#141414"))
         p.drawRoundedRect(QRectF(bar_x, bar_y, bar_w, bar_h), bar_h // 2, bar_h // 2)
 
         fill_w = int(bar_w * pct / 100.0)
