@@ -5,7 +5,9 @@
 ; =====================================================================
 
 #define AppName "FaceScan"
-#define AppVersion "1.1.0"
+#ifndef AppVersion
+  #error "Pass /DAppVersion from app.__version__; use packaging/build.ps1"
+#endif
 #define AppPublisher "FaceScan"
 #define AppExeName "FaceScan.exe"
 
