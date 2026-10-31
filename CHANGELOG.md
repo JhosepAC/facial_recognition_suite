@@ -4,9 +4,10 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 The version is managed in `app/__init__.py` (`__version__`).
 
-## [Unreleased]
+## [1.2.0] - 2026-10-31
 
 ### Changed
+- Refine authentication with type-led, left-aligned headers and no decorative icons.
 - Redesign all desktop modules and authentication screens with neutral charcoal surfaces,
   green accents, consistent control states, clearer tables, forms, and navigation groups.
 

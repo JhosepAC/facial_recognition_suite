@@ -19,6 +19,9 @@ if (-not (Test-Path $Py)) {
     throw "No se encontro .venv\Scripts\python.exe"
 }
 
+$ReleaseVersion = & $Py -c "from app import __version__; print(__version__)"
+if ($LASTEXITCODE -ne 0) { throw "Could not read application version" }
+
 Write-Host "==> 1/6 Tests"
 & $Py -m pytest -q --no-header -p no:warnings
 if ($LASTEXITCODE -ne 0) { throw "Tests fallidos" }
@@ -62,10 +65,10 @@ if (-not $iscc) {
     if (-not $isccPath) {
         throw "ISCC.exe no encontrado. Instala Inno Setup 6 y anade su carpeta al PATH."
     }
-    & $isccPath packaging\installer.iss
+    & $isccPath "/DAppVersion=$ReleaseVersion" packaging\installer.iss
 }
 else {
-    & $iscc packaging\installer.iss
+    & $iscc "/DAppVersion=$ReleaseVersion" packaging\installer.iss
 }
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup fallo" }
 
