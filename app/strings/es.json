@@ -550,5 +550,21 @@
   "stats.backup_ok": "Respaldo de base de datos generado en {0}",
   "stats.export_error_title": "Error al exportar",
   "stats.export_error_msg": "{0}",
-  "stats.backup_error_title": "Error al respaldar"
+  "stats.backup_error_title": "Error al respaldar",
+  "workspace.quick_navigation": "Ir a módulo",
+  "workspace.find_module": "Buscar módulos…",
+  "workspace.no_modules": "No hay módulos que coincidan. Prueba con otro nombre.",
+  "workspace.navigation_hint": "Tab / ↓ para elegir · Enter para abrir · Esc para cerrar",
+  "workspace.records": "Espacio de trabajo",
+  "workspace.analysis": "Análisis",
+  "workspace.management": "Gestión",
+  "workspace.enroll": "Registrar persona",
+  "workspace.identify": "Buscar persona",
+  "workspace.analyze_video": "Analizar video",
+  "workspace.intro": "Comienza con un registro, busca una persona o revisa un video. Aquí verás la actividad de reconocimiento reciente.",
+  "common.clear": "Limpiar",
+  "compare.empty_image": "Arrastra una imagen aquí",
+  "compare.detection_confidence": "Confianza de detección {value}%",
+  "workspace.no_access": "Tu cuenta no tiene módulos asignados. Contacta con un administrador para solicitar acceso.",
+  "login.registration_permissions": "Tu cuenta comienza con un rol estándar. Un administrador puede ajustar sus permisos."
 }

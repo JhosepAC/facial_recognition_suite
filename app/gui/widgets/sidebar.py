@@ -23,8 +23,8 @@ NAV_ITEMS = [
 
 ICON_SIZE = 18
 
-# Accent for the selected entry: clean blue (no green component).
-SELECTED_COLOR = "#3b82f6"
+# Accent shared with the dark workspace theme.
+SELECTED_COLOR = "#3ecf8e"
 
 
 class Sidebar(QWidget):
@@ -44,10 +44,10 @@ class Sidebar(QWidget):
         """
         super().__init__(parent)
         self.setObjectName("Sidebar")
-        self.setFixedWidth(220)
+        self.setFixedWidth(232)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(12, 20, 12, 20)
+        layout.setContentsMargins(16, 24, 16, 20)
         layout.setSpacing(4)
 
         self.title = QLabel()
@@ -61,6 +61,14 @@ class Sidebar(QWidget):
         self._icon_by_button: dict[QPushButton, str] = {}
 
         for key, tr_key, glyph_name in NAV_ITEMS:
+            if key in ("dashboard", "comparador", "estadisticas"):
+                section = QLabel()
+                section.setObjectName("SectionLabel")
+                section.setProperty("sectionKey", {
+                    "dashboard": "workspace.records", "comparador": "workspace.analysis",
+                    "estadisticas": "workspace.management",
+                }[key])
+                layout.addWidget(section)
             btn = QPushButton(tr(tr_key))
             btn.setObjectName("SidebarButton")
             btn.setCheckable(True)
@@ -76,7 +84,7 @@ class Sidebar(QWidget):
         layout.addStretch()
 
         self.version = QLabel()
-        self.version.setStyleSheet("color: #6b6e7d; font-size: 11px; padding: 8px;")
+        self.version.setStyleSheet("color: #949494; font-size: 11px; padding: 8px;")
         layout.addWidget(self.version)
 
         # Select Dashboard by default
@@ -91,6 +99,13 @@ class Sidebar(QWidget):
         self.version.setText(tr("sidebar.version", version=APP_VERSION))
         for key, tr_key, _glyph in NAV_ITEMS:
             self._buttons[key].setText(tr(tr_key))
+        for label in self.findChildren(QLabel, "SectionLabel"):
+            label.setText(tr(label.property("sectionKey")))
+
+    def select(self, key: str) -> None:
+        """Keep selection synchronized with every navigation entry point."""
+        if key in self._buttons:
+            self._buttons[key].setChecked(True)
 
     def _on_button_toggled(self, btn: QPushButton, checked: bool) -> None:
         """Update the icon color when a button is toggled.
@@ -111,6 +126,13 @@ class Sidebar(QWidget):
             allowed_keys: Set of navigation keys the user may access.
         """
         first_visible = None
+        sections = {
+            "workspace.records": {"dashboard", "personas"},
+            "workspace.analysis": {"comparador", "busqueda", "webcam", "videos"},
+            "workspace.management": {"estadisticas", "administracion"},
+        }
+        for label in self.findChildren(QLabel, "SectionLabel"):
+            label.setVisible(bool(sections[label.property("sectionKey")] & allowed_keys))
         for key, btn in self._buttons.items():
             visible = key in allowed_keys
             btn.setVisible(visible)

@@ -26,7 +26,7 @@ from app.core.logger import logger
 from app.database.models import User
 from app.database.session import get_session, init_db
 from app.gui.main_window import MainWindow
-from app.gui.theme import get_stylesheet
+from app.gui.theme import get_palette, get_stylesheet
 from app.gui.widgets.login_widget import (
     FirstRunSetupDialog,
     LoginDialog,
@@ -196,6 +196,7 @@ def main() -> None:
     app.setApplicationName("FaceScan")
     app.setWindowIcon(QIcon(str(LOGO_PATH)))
     app.setStyleSheet(get_stylesheet(settings.app.theme))
+    app.setPalette(get_palette(settings.app.theme))
 
     with get_session() as session:
         has_users = session.query(User).count() > 0

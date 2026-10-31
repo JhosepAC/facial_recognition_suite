@@ -26,11 +26,11 @@ from app.vision.face_attributes import (
 )
 
 # --- Visual palette consistent with the app dark theme (see app/gui/theme.py) ---
-BG_FIGURE = "#22232c"
-BG_AXES = "#22232c"
-TEXT_COLOR = "#c9cbd6"
-GRID_COLOR = "#34353f"
-PALETTE = ["#2f6fed", "#6fa8ff", "#46c37b", "#f2b134", "#e85d5d", "#a06cd5", "#3fc7c1"]
+BG_FIGURE = "#1c1c1c"
+BG_AXES = "#1c1c1c"
+TEXT_COLOR = "#d4d4d4"
+GRID_COLOR = "#404040"
+PALETTE = ["#3ecf8e", "#65dca5", "#70a5eb", "#f2b134", "#e85d5d", "#b394d6", "#3fc7c1"]
 
 _DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
 
